@@ -1,0 +1,11 @@
+services:
+  # TLS termina no Caddy/Cloudflare. Manter FORCE_SSL desativado no Rails
+  # permite chamadas HTTP internas seguras dentro da rede Docker sem redirects
+  # para https://chatwoot:3000, onde não existe um listener TLS.
+  chatwoot:
+    environment:
+      FORCE_SSL: "false"
+
+  chatwoot_worker:
+    environment:
+      FORCE_SSL: "false"
