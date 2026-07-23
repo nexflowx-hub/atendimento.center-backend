@@ -13,7 +13,7 @@ x-chatwoot-base: &chatwoot-base
     INSTALLATION_ENV: docker
     FRONTEND_URL: https://chat.atendimento.center
     FORCE_SSL: "true"
-    ENABLE_ACCOUNT_SIGNUP: "false"
+    ENABLE_ACCOUNT_SIGNUP: ${CHATWOOT_ENABLE_ACCOUNT_SIGNUP:-true}
     SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE}
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"
@@ -81,7 +81,7 @@ services:
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
-    command: ["sh", "-c", "redis-server --appendonly yes --requirepass '$${REDIS_PASSWORD}'"]
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
@@ -89,7 +89,7 @@ services:
     networks:
       - atendimento_internal
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a '$${REDIS_PASSWORD}' ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -114,7 +114,7 @@ services:
         condition: service_healthy
 
   evolution:
-    image: evoapicloud/evolution-api:v2.3.6
+    image: evoapicloud/evolution-api:v2.3.7
     restart: unless-stopped
     environment:
       SERVER_TYPE: http
