@@ -1,0 +1,44 @@
+{
+  email {$ACME_EMAIL}
+  admin off
+}
+
+(common_headers) {
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "SAMEORIGIN"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    -Server
+  }
+}
+
+atendimento.center, www.atendimento.center {
+  import common_headers
+  reverse_proxy frontend:3000
+}
+
+app.atendimento.center {
+  import common_headers
+  reverse_proxy frontend:3000
+}
+
+api.atendimento.center {
+  import common_headers
+  reverse_proxy backend:8080
+}
+
+chat.atendimento.center {
+  import common_headers
+  reverse_proxy chatwoot:3000
+}
+
+evo.atendimento.center {
+  import common_headers
+  basic_auth {
+    atlas {$EVOLUTION_BASIC_AUTH_HASH}
+  }
+  reverse_proxy evolution:8080
+}
