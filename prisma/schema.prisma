@@ -14,6 +14,13 @@ enum TenantStatus {
   cancelled
 }
 
+enum TenantPlan {
+  internal
+  starter
+  business
+  enterprise
+}
+
 enum UserRole {
   owner
   admin
@@ -23,18 +30,21 @@ enum UserRole {
 }
 
 model Tenant {
-  id                 String           @id @default(uuid())
-  name               String
-  slug               String           @unique
-  status             TenantStatus     @default(trial)
-  chatwootAccountId  Int?             @unique
-  evolutionInstance  String?          @unique
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  users              TenantUser[]
-  aiConfiguration    AiConfiguration?
+  id                  String               @id @default(uuid())
+  name                String
+  slug                String               @unique
+  status              TenantStatus         @default(trial)
+  plan                TenantPlan           @default(starter)
+  locale              String               @default("pt-BR")
+  timezone            String               @default("America/Sao_Paulo")
+  chatwootAccountId   Int?                 @unique
+  evolutionInstance   String?              @unique
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  users               TenantUser[]
+  aiConfiguration     AiConfiguration?
   appointmentRequests AppointmentRequest[]
-  auditLogs          AuditLog[]
+  auditLogs           AuditLog[]
 }
 
 model TenantUser {
@@ -64,19 +74,19 @@ model AiConfiguration {
 }
 
 model AppointmentRequest {
-  id             String   @id @default(uuid())
-  tenantId       String
-  contactName    String?
-  contactPhone   String
-  service        String?
-  preferredDate  DateTime?
+  id              String   @id @default(uuid())
+  tenantId        String
+  contactName     String?
+  contactPhone    String
+  service         String?
+  preferredDate   DateTime?
   preferredPeriod String?
-  status         String   @default("pending")
-  conversationId String?
-  metadata       Json?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  status          String   @default("pending")
+  conversationId  String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
 }
