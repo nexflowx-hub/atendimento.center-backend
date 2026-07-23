@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  trial
+  active
+  suspended
+  cancelled
+}
+
+enum UserRole {
+  owner
+  admin
+  supervisor
+  agent
+  viewer
+}
+
+model Tenant {
+  id                 String           @id @default(uuid())
+  name               String
+  slug               String           @unique
+  status             TenantStatus     @default(trial)
+  chatwootAccountId  Int?             @unique
+  evolutionInstance  String?          @unique
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  users              TenantUser[]
+  aiConfiguration    AiConfiguration?
+  appointmentRequests AppointmentRequest[]
+  auditLogs          AuditLog[]
+}
+
+model TenantUser {
+  id         String   @id @default(uuid())
+  tenantId   String
+  authUserId String
+  role       UserRole @default(agent)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, authUserId])
+  @@index([authUserId])
+}
+
+model AiConfiguration {
+  id                   String   @id @default(uuid())
+  tenantId             String   @unique
+  enabled              Boolean  @default(false)
+  model                 String   @default("openai/gpt-4.1-mini")
+  systemPrompt          String   @db.Text
+  humanHandoffThreshold Float    @default(0.75)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model AppointmentRequest {
+  id             String   @id @default(uuid())
+  tenantId       String
+  contactName    String?
+  contactPhone   String
+  service        String?
+  preferredDate  DateTime?
+  preferredPeriod String?
+  status         String   @default("pending")
+  conversationId String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  tenantId   String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
