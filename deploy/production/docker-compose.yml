@@ -12,7 +12,7 @@ x-chatwoot-base: &chatwoot-base
     RAILS_ENV: production
     INSTALLATION_ENV: docker
     FRONTEND_URL: https://chat.atendimento.center
-    FORCE_SSL: "true"
+    FORCE_SSL: "false"
     ENABLE_ACCOUNT_SIGNUP: ${CHATWOOT_ENABLE_ACCOUNT_SIGNUP:-true}
     SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE}
     POSTGRES_HOST: postgres
@@ -42,8 +42,9 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"
-    env_file:
-      - .env
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      EVOLUTION_BASIC_AUTH_HASH: ${EVOLUTION_BASIC_AUTH_HASH}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
