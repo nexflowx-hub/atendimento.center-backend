@@ -22,6 +22,8 @@ atendimento.center, www.atendimento.center {
 
 app.atendimento.center {
   import common_headers
+  @root path /
+  redir @root /app 302
   reverse_proxy frontend:3000
 }
 
