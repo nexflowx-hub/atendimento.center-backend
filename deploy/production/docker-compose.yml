@@ -1,0 +1,201 @@
+name: atendimento-center
+
+x-chatwoot-base: &chatwoot-base
+  image: chatwoot/chatwoot:${CHATWOOT_VERSION:-v4.16.0-ce}
+  restart: unless-stopped
+  networks:
+    - atendimento_internal
+  volumes:
+    - chatwoot_storage:/app/storage
+  environment:
+    NODE_ENV: production
+    RAILS_ENV: production
+    INSTALLATION_ENV: docker
+    FRONTEND_URL: https://chat.atendimento.center
+    FORCE_SSL: "true"
+    ENABLE_ACCOUNT_SIGNUP: "false"
+    SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE}
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    POSTGRES_DATABASE: chatwoot
+    POSTGRES_USERNAME: ${LOCAL_POSTGRES_USER}
+    POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+    REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ACTIVE_STORAGE_SERVICE: local
+    RAILS_LOG_TO_STDOUT: "true"
+    LOG_LEVEL: info
+    DEFAULT_LOCALE: pt_BR
+    MAILER_SENDER_EMAIL: ${MAILER_SENDER_EMAIL:-Atendimento.Center <no-reply@atendimento.center>}
+    SMTP_ADDRESS: ${SMTP_ADDRESS:-}
+    SMTP_PORT: ${SMTP_PORT:-587}
+    SMTP_USERNAME: ${SMTP_USERNAME:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    SMTP_AUTHENTICATION: ${SMTP_AUTHENTICATION:-login}
+    SMTP_ENABLE_STARTTLS_AUTO: ${SMTP_ENABLE_STARTTLS_AUTO:-true}
+
+services:
+  caddy:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    env_file:
+      - .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - atendimento_internal
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+      chatwoot:
+        condition: service_started
+      evolution:
+        condition: service_started
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${LOCAL_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - atendimento_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOCAL_POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass '$${REDIS_PASSWORD}'"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - atendimento_internal
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '$${REDIS_PASSWORD}' ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  chatwoot:
+    <<: *chatwoot-base
+    entrypoint: docker/entrypoints/rails.sh
+    command: ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  chatwoot_worker:
+    <<: *chatwoot-base
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.6
+    restart: unless-stopped
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: "8080"
+      SERVER_URL: https://evo.atendimento.center
+      CORS_ORIGIN: https://app.atendimento.center,https://atendimento.center
+      CORS_METHODS: GET,POST,PUT,DELETE,PATCH
+      CORS_CREDENTIALS: "true"
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${LOCAL_POSTGRES_USER}:${LOCAL_POSTGRES_PASSWORD}@postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: atendimento_center
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
+      DATABASE_SAVE_DATA_LABELS: "true"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CACHE_REDIS_PREFIX_KEY: atendimento-evolution
+      CACHE_LOCAL_ENABLED: "false"
+      CONFIG_SESSION_PHONE_CLIENT: Atendimento.Center
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: "30"
+      CHATWOOT_ENABLED: "true"
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - atendimento_internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      CORS_ORIGINS: https://atendimento.center,https://app.atendimento.center
+      DATABASE_URL: ${SUPABASE_DATABASE_URL}
+      CHATWOOT_BASE_URL: http://chatwoot:3000
+      CHATWOOT_API_TOKEN: ${CHATWOOT_API_TOKEN:-}
+      EVOLUTION_BASE_URL: http://evolution:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4.1-mini}
+    networks:
+      - atendimento_internal
+    depends_on:
+      chatwoot:
+        condition: service_started
+      evolution:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ../../../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://api.atendimento.center/api/v1
+    networks:
+      - atendimento_internal
+
+networks:
+  atendimento_internal:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:
+  chatwoot_storage:
+  evolution_instances:
