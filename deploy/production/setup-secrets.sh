@@ -41,6 +41,7 @@ cat >.env <<EOF
 ACME_EMAIL=$ACME_EMAIL
 EVOLUTION_BASIC_AUTH_HASH='$EVOLUTION_BASIC_AUTH_HASH'
 CHATWOOT_VERSION=v4.16.0-ce
+CHATWOOT_ENABLE_ACCOUNT_SIGNUP=true
 LOCAL_POSTGRES_USER=atendimento
 LOCAL_POSTGRES_PASSWORD=$LOCAL_POSTGRES_PASSWORD
 REDIS_PASSWORD=$REDIS_PASSWORD
@@ -50,7 +51,7 @@ SUPABASE_DATABASE_URL=postgresql://postgres.euigjmkdreiztamqmhsw:$SUPABASE_DB_PA
 CHATWOOT_API_TOKEN=
 OPENROUTER_API_KEY=$OPENROUTER_API_KEY
 OPENROUTER_MODEL=openai/gpt-4.1-mini
-MAILER_SENDER_EMAIL=Atendimento.Center <no-reply@atendimento.center>
+MAILER_SENDER_EMAIL='Atendimento.Center <no-reply@atendimento.center>'
 SMTP_ADDRESS=
 SMTP_PORT=587
 SMTP_USERNAME=
@@ -64,4 +65,5 @@ unset SUPABASE_DB_PASSWORD EVOLUTION_BASIC_PASSWORD
 echo
 printf '%s\n' "Segredos criados em: $SCRIPT_DIR/.env" \
   "Evolution API key: guardada no .env" \
+  "O registo inicial do Chatwoot está temporariamente ativo." \
   "O ficheiro .env não deve ser enviado ao GitHub."
