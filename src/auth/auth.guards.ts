@@ -43,10 +43,13 @@ export class TenantGuard implements CanActivate {
       throw new UnauthorizedException('Utilizador não autenticado.');
     }
 
+    const requestedSlug = request.headers['x-tenant-slug']?.trim();
+
     const membership = await this.prisma.tenantUser.findFirst({
       where: {
         authUserId: user.id,
         active: true,
+        ...(requestedSlug ? { tenant: { slug: requestedSlug } } : {}),
       },
       include: {
         tenant: true,
@@ -57,7 +60,11 @@ export class TenantGuard implements CanActivate {
     });
 
     if (!membership || !['trial', 'active'].includes(membership.tenant.status)) {
-      throw new ForbiddenException('Utilizador sem tenant ativo no Atendimento.Center.');
+      throw new ForbiddenException(
+        requestedSlug
+          ? 'Utilizador sem acesso ao tenant solicitado.'
+          : 'Utilizador sem tenant ativo no Atendimento.Center.',
+      );
     }
 
     request.membership = membership;
