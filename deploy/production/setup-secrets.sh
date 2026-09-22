@@ -12,10 +12,16 @@ fi
 read -r -p "E-mail ACME/Let's Encrypt [ops@atlasglobal.digital]: " ACME_EMAIL
 ACME_EMAIL=${ACME_EMAIL:-ops@atlasglobal.digital}
 
-read -r -s -p "Password do Postgres/Supabase: " SUPABASE_DB_PASSWORD
+read -r -p "Supabase project URL (Auth only): " SUPABASE_URL
+if [[ -z "$SUPABASE_URL" ]]; then
+  echo "SUPABASE_URL é obrigatório." >&2
+  exit 1
+fi
+
+read -r -s -p "Supabase publishable/anon key: " SUPABASE_ANON_KEY
 echo
-if [[ -z "$SUPABASE_DB_PASSWORD" ]]; then
-  echo "A password do Supabase é obrigatória." >&2
+if [[ -z "$SUPABASE_ANON_KEY" ]]; then
+  echo "A publishable/anon key do Supabase é obrigatória." >&2
   exit 1
 fi
 
@@ -29,7 +35,6 @@ fi
 read -r -s -p "OpenRouter API key (Enter para configurar depois): " OPENROUTER_API_KEY
 echo
 
-SUPABASE_DB_PASSWORD_ENCODED=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip(), safe=""))' <<<"$SUPABASE_DB_PASSWORD")
 LOCAL_POSTGRES_PASSWORD=$(openssl rand -hex 32)
 REDIS_PASSWORD=$(openssl rand -hex 32)
 CHATWOOT_SECRET_KEY_BASE=$(openssl rand -hex 64)
@@ -47,7 +52,8 @@ LOCAL_POSTGRES_PASSWORD=$LOCAL_POSTGRES_PASSWORD
 REDIS_PASSWORD=$REDIS_PASSWORD
 CHATWOOT_SECRET_KEY_BASE=$CHATWOOT_SECRET_KEY_BASE
 EVOLUTION_API_KEY=$EVOLUTION_API_KEY
-SUPABASE_DATABASE_URL=postgresql://postgres.euigjmkdreiztamqmhsw:$SUPABASE_DB_PASSWORD_ENCODED@aws-1-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require
+SUPABASE_URL=$SUPABASE_URL
+SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 CHATWOOT_API_TOKEN=
 OPENROUTER_API_KEY=$OPENROUTER_API_KEY
 OPENROUTER_MODEL=openai/gpt-4.1-mini
@@ -60,10 +66,11 @@ SMTP_AUTHENTICATION=login
 SMTP_ENABLE_STARTTLS_AUTO=true
 EOF
 chmod 600 .env
-unset SUPABASE_DB_PASSWORD EVOLUTION_BASIC_PASSWORD
+unset SUPABASE_ANON_KEY EVOLUTION_BASIC_PASSWORD
 
 echo
 printf '%s\n' "Segredos criados em: $SCRIPT_DIR/.env" \
+  "Supabase configurado apenas para Auth; o Core usa PostgreSQL local." \
   "Evolution API key: guardada no .env" \
   "O registo inicial do Chatwoot está temporariamente ativo." \
   "O ficheiro .env não deve ser enviado ao GitHub."
