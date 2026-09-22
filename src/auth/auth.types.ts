@@ -11,6 +11,7 @@ export interface SupabaseUser {
 export interface AuthenticatedHttpRequest {
   headers: {
     authorization?: string;
+    'x-tenant-slug'?: string;
   };
   user?: SupabaseUser;
   tenant?: Tenant;
