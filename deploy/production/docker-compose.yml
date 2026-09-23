@@ -34,6 +34,15 @@ x-chatwoot-base: &chatwoot-base
     SMTP_AUTHENTICATION: ${SMTP_AUTHENTICATION:-login}
     SMTP_ENABLE_STARTTLS_AUTO: ${SMTP_ENABLE_STARTTLS_AUTO:-true}
 
+    # Meta social channels (self-hosted Chatwoot)
+    FB_APP_ID: ${FB_APP_ID:-}
+    FB_APP_SECRET: ${FB_APP_SECRET:-}
+    FB_VERIFY_TOKEN: ${FB_VERIFY_TOKEN:-}
+    INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:-}
+    INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}
+    INSTAGRAM_VERIFY_TOKEN: ${INSTAGRAM_VERIFY_TOKEN:-}
+    IG_VERIFY_TOKEN: ${IG_VERIFY_TOKEN:-}
+
 services:
   caddy:
     image: caddy:2.10.0-alpine
