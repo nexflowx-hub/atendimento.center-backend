@@ -45,7 +45,7 @@ operations = [
     {
         "name": "FaceLove",
         "slug": "facelove",
-        "websiteUrl": env("FACELOVE_WEBSITE_URL"),
+        "websiteUrl": env("FACELOVE_WEBSITE_URL", "https://facelove.online"),
         "welcomeTitle": "FaceLove",
         "welcomeTagline": "Olá! Como podemos ajudar?",
         "evolutionInstance": env("FACELOVE_EVOLUTION_INSTANCE"),
@@ -65,6 +65,14 @@ operations = [
         "welcomeTitle": "AtlasHub",
         "welcomeTagline": "Olá! Como podemos ajudar?",
         "evolutionInstance": env("ATLASHUB_EVOLUTION_INSTANCE"),
+    },
+    {
+        "name": "TreinoMilitar",
+        "slug": "treinomilitar",
+        "websiteUrl": env("TREINOMILITAR_WEBSITE_URL", "https://treinomilitar.novidades.store"),
+        "welcomeTitle": "TreinoMilitar",
+        "welcomeTagline": "Conteúdo, treino e acompanhamento inteligente.",
+        "evolutionInstance": env("TREINOMILITAR_EVOLUTION_INSTANCE"),
     },
 ]
 
