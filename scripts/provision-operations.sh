@@ -159,18 +159,19 @@ fi
 PAYLOAD="${MARKER#ATC_BOOTSTRAP_JSON=}"
 unset MARKER
 
-printf '%s' "$PAYLOAD" | python3 - "$SECRETS_FILE" <<'PY'
+export PAYLOAD SECRETS_FILE
+python3 - <<'PY'
 import json
 import os
-import sys
 
-target = sys.argv[1]
-payload = json.loads(sys.stdin.read())
+target = os.environ["SECRETS_FILE"]
+payload = json.loads(os.environ["PAYLOAD"])
 with open(target, "w", encoding="utf-8") as f:
     json.dump(payload, f, indent=2)
     f.write("\n")
 os.chmod(target, 0o600)
 PY
+unset PAYLOAD
 
 BACKEND_OPERATIONS="$(
   python3 - "$SECRETS_FILE" <<'PY'
