@@ -23,18 +23,18 @@ Atendimento.Center server-only:
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL=openai/gpt-4.1-mini
 
-MYTRAINX_BASE_URL=https://mytrainx.fit
-MYTRAINX_AGENT_SHARED_SECRET=
-MYTRAINX_AGENT_SERVICE=atendimento-center
-MYTRAINX_AGENT_GATEWAY_ALLOWED_SERVICE=mytrainx
-MYTRAINX_AGENT_GATEWAY_SCOPE=agent:access
-MYTRAINX_AGENT_GATEWAY_MAX_SKEW_SECONDS=90
-MYTRAINX_TOOL_TIMEOUT_MS=12000
+# One global key for encrypted IntegrationCredential rows.
+INTEGRATION_MASTER_KEY=
+
+AGENT_GATEWAY_SCOPE=agent:access
+AGENT_GATEWAY_MAX_SKEW_SECONDS=90
 ```
 
-MyTrainX and Atendimento.Center must share the same `MYTRAINX_AGENT_SHARED_SECRET` for B1.
+Project configuration is no longer represented by one ENV block per project.
 
-The secret is server-only. It must never be exposed to browser code, prompts, tools or logs.
+`IntegrationApplication` stores project configuration such as base URL, protocol and auth mode. `IntegrationCredential` stores any remaining per-project secret encrypted with `INTEGRATION_MASTER_KEY`.
+
+For the initial MyTrainX HMAC bridge, the same shared secret is stored server-side in MyTrainX and encrypted twice in Atendimento.Center as `inbound_hmac` and `outbound_hmac`. It is not an Atendimento.Center ENV variable.
 
 ## 3. Agent Gateway ingress auth
 
@@ -42,16 +42,18 @@ B1 introduces a signed MyTrainX -> Atendimento.Center gateway contract using the
 
 **Integration proposal introduced by B1:** the reviewed MyTrainX branch already verifies Atendimento.Center -> MyTrainX tool requests, but it does not yet contain the reciprocal MyTrainX -> Atendimento.Center signer. C1 must add that signer server-side in MyTrainX before the WebChat can call this gateway. This does not change the ownership/domain boundary.
 
-Required headers:
+Primary Agent Gateway headers:
 
 ```
-x-mtx-service: mytrainx
-x-mtx-user-id: <Supabase auth UUID>
-x-mtx-timestamp: <unix seconds>
-x-mtx-scope: agent:access
-x-mtx-request-id: <unique request id>
-x-mtx-signature: <hex HMAC-SHA256>
+x-atc-service: mytrainx
+x-atc-user-id: <Supabase auth UUID>
+x-atc-timestamp: <unix seconds>
+x-atc-scope: agent:access
+x-atc-request-id: <unique request id>
+x-atc-signature: <hex HMAC-SHA256>
 ```
+
+B1.1 also accepts the previous `x-mtx-*` names as a compatibility bridge for MyTrainX. New project integrations should use `x-atc-*`.
 
 Canonical string:
 
@@ -77,6 +79,57 @@ The gateway rejects:
 - replayed `request_id`.
 
 **Important:** the authenticated principal user ID is stored by the server and is the only user ID used by tools. The model cannot choose another user.
+
+## 3.1 Integration Registry
+
+B1.1 adds a multi-project registry so Atendimento.Center does not accumulate project-specific ENV variables.
+
+```
+IntegrationApplication
+
+id
+key UNIQUE
+name
+baseUrl?
+status
+inboundAuthMode
+outboundAuthMode
+protocol
+tenantId?
+vercelOwner?
+vercelProjectId?
+vercelEnvironment?
+vercelAudience?
+metadata
+createdAt
+updatedAt
+```
+
+Initial registry bootstrap:
+
+```
+mytrainx
+facelove
+mypets
+novidades
+atlashub
+```
+
+Credentials:
+
+```
+IntegrationCredential
+
+applicationId
+type
+encryptedValue
+keyVersion
+active
+createdAt
+rotatedAt
+```
+
+Tools point to `IntegrationApplication`, and agents are allowlisted per application through `IntegrationAgent`.
 
 ## 4. Agent Registry schema
 
@@ -439,7 +492,7 @@ Authoritative goals, program state, workouts, progress and entitlements remain M
 
 ## 14. Deployment
 
-1. Configure server ENV, especially matching `MYTRAINX_AGENT_SHARED_SECRET`.
+1. Generate/configure the single global `INTEGRATION_MASTER_KEY`.
 2. Back up the Atendimento.Center operational database.
 3. Update the backend branch/build.
 4. Apply Prisma schema:
@@ -450,7 +503,15 @@ npx prisma db push
 ```
 
 5. Rebuild/recreate backend container.
-6. Bootstrap registry/tools:
+6. Bootstrap the multi-project Integration Registry:
+
+```bash
+docker exec atendimento-api node scripts/bootstrap-integrations.mjs
+```
+
+7. Store the MyTrainX HMAC secret encrypted in DB as both inbound and outbound credentials using `scripts/set-integration-credential.mjs`.
+
+8. Bootstrap Coach X and its MyTrainX tools:
 
 ```bash
 docker exec atendimento-api node scripts/bootstrap-agent-core.mjs
@@ -473,7 +534,7 @@ Expected:
 }
 ```
 
-7. Confirm health endpoint before integration.
+9. Confirm health endpoint before integration.
 
 ## 15. Acceptance test
 
