@@ -45,6 +45,7 @@ model Tenant {
   aiConfiguration     AiConfiguration?
   appointmentRequests AppointmentRequest[]
   auditLogs           AuditLog[]
+  integrationApplication IntegrationApplication?
 }
 
 model TenantUser {
@@ -105,6 +106,32 @@ model AuditLog {
   @@index([tenantId, createdAt])
 }
 
+
+enum IntegrationStatus {
+  active
+  inactive
+  suspended
+}
+
+enum IntegrationInboundAuthMode {
+  hmac_sha256
+  vercel_oidc
+  jwt
+  none
+}
+
+enum IntegrationOutboundAuthMode {
+  hmac_sha256
+  jwt
+  none
+}
+
+enum IntegrationCredentialType {
+  inbound_hmac
+  outbound_hmac
+  jwt_private_key
+  api_key
+}
 
 enum AgentStatus {
   active
@@ -192,6 +219,7 @@ model Agent {
   updatedAt   DateTime    @updatedAt
   versions    AgentVersion[]
   conversations AgentConversation[]
+  integrations IntegrationAgent[]
 }
 
 model AgentVersion {
@@ -219,18 +247,70 @@ model AgentVersion {
   @@index([agentId, active])
 }
 
+model IntegrationApplication {
+  id               String                      @id @default(uuid())
+  key              String                      @unique
+  name             String
+  baseUrl          String?
+  status           IntegrationStatus           @default(active)
+  inboundAuthMode  IntegrationInboundAuthMode  @default(hmac_sha256)
+  outboundAuthMode IntegrationOutboundAuthMode @default(hmac_sha256)
+  protocol         String                      @default("generic")
+  tenantId         String?                     @unique
+  vercelOwner      String?
+  vercelProjectId  String?
+  vercelEnvironment String?
+  vercelAudience   String?
+  metadata         Json?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  tenant           Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  credentials      IntegrationCredential[]
+  tools            ToolRegistry[]
+  agents           IntegrationAgent[]
+}
+
+model IntegrationCredential {
+  id            String                    @id @default(uuid())
+  applicationId String
+  type          IntegrationCredentialType
+  encryptedValue String                   @db.Text
+  keyVersion    Int                       @default(1)
+  active        Boolean                   @default(true)
+  createdAt     DateTime                  @default(now())
+  rotatedAt     DateTime?
+  application   IntegrationApplication    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, type, active])
+}
+
+model IntegrationAgent {
+  applicationId String
+  agentId       String
+  enabled       Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  application   IntegrationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  agent         Agent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, agentId])
+}
+
 model ToolRegistry {
-  id           String         @id @default(uuid())
-  key          String         @unique
-  description  String         @db.Text
-  method       ToolHttpMethod @default(GET)
-  endpointPath String
-  scopes       Json
-  inputSchema  Json?
-  enabled      Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  versions     AgentVersionTool[]
+  id                       String                  @id @default(uuid())
+  key                      String                  @unique
+  description              String                  @db.Text
+  method                   ToolHttpMethod          @default(GET)
+  endpointPath             String
+  scopes                   Json
+  inputSchema              Json?
+  enabled                  Boolean                 @default(true)
+  integrationApplicationId String?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  integrationApplication   IntegrationApplication? @relation(fields: [integrationApplicationId], references: [id], onDelete: Restrict)
+  versions                 AgentVersionTool[]
+
+  @@index([integrationApplicationId, enabled])
 }
 
 model AgentVersionTool {
