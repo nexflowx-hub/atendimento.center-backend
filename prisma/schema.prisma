@@ -45,6 +45,7 @@ model Tenant {
   aiConfiguration     AiConfiguration?
   appointmentRequests AppointmentRequest[]
   auditLogs           AuditLog[]
+  integrationApplication IntegrationApplication?
 }
 
 model TenantUser {
@@ -103,4 +104,375 @@ model AuditLog {
   tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
+}
+
+
+enum IntegrationStatus {
+  active
+  inactive
+  suspended
+}
+
+enum IntegrationInboundAuthMode {
+  hmac_sha256
+  vercel_oidc
+  jwt
+  none
+}
+
+enum IntegrationOutboundAuthMode {
+  hmac_sha256
+  jwt
+  none
+}
+
+enum IntegrationCredentialType {
+  inbound_hmac
+  outbound_hmac
+  jwt_private_key
+  api_key
+}
+
+enum AgentStatus {
+  active
+  inactive
+  archived
+}
+
+enum AgentChannel {
+  web
+  whatsapp
+  instagram
+  facebook
+  api
+}
+
+enum AgentConversationStatus {
+  active
+  cancelled
+  handed_off
+  closed
+}
+
+enum HandoffState {
+  none
+  required
+  active
+  resolved
+}
+
+enum AgentMessageRole {
+  system
+  user
+  assistant
+  tool
+}
+
+enum AgentMessageStatus {
+  pending
+  streaming
+  completed
+  failed
+  cancelled
+}
+
+enum AgentRunStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum ToolCallStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum ToolHttpMethod {
+  GET
+  POST
+}
+
+enum MemoryCandidateStatus {
+  pending
+  accepted
+  rejected
+}
+
+enum OperationalMemoryStatus {
+  active
+  superseded
+  revoked
+}
+
+model Agent {
+  id          String      @id @default(uuid())
+  key         String      @unique
+  name        String
+  description String?     @db.Text
+  status      AgentStatus @default(active)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  versions    AgentVersion[]
+  conversations AgentConversation[]
+  integrations IntegrationAgent[]
+}
+
+model AgentVersion {
+  id            String   @id @default(uuid())
+  agentId       String
+  version       Int
+  label         String?
+  provider      String   @default("openrouter")
+  model         String   @default("openai/gpt-4.1-mini")
+  temperature   Float    @default(0.2)
+  systemPrompt  String   @db.Text
+  skills        Json?
+  safetyPolicy  Json?
+  memoryPolicy  Json?
+  channelPolicy Json?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  tools         AgentVersionTool[]
+  conversations AgentConversation[]
+  runs          AgentRun[]
+
+  @@unique([agentId, version])
+  @@index([agentId, active])
+}
+
+model IntegrationApplication {
+  id               String                      @id @default(uuid())
+  key              String                      @unique
+  name             String
+  baseUrl          String?
+  status           IntegrationStatus           @default(active)
+  inboundAuthMode  IntegrationInboundAuthMode  @default(hmac_sha256)
+  outboundAuthMode IntegrationOutboundAuthMode @default(hmac_sha256)
+  protocol         String                      @default("generic")
+  tenantId         String?                     @unique
+  vercelOwner      String?
+  vercelProjectId  String?
+  vercelEnvironment String?
+  vercelAudience   String?
+  metadata         Json?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  tenant           Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  credentials      IntegrationCredential[]
+  tools            ToolRegistry[]
+  agents           IntegrationAgent[]
+}
+
+model IntegrationCredential {
+  id            String                    @id @default(uuid())
+  applicationId String
+  type          IntegrationCredentialType
+  encryptedValue String                   @db.Text
+  keyVersion    Int                       @default(1)
+  active        Boolean                   @default(true)
+  createdAt     DateTime                  @default(now())
+  rotatedAt     DateTime?
+  application   IntegrationApplication    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, type, active])
+}
+
+model IntegrationAgent {
+  applicationId String
+  agentId       String
+  enabled       Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  application   IntegrationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  agent         Agent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, agentId])
+}
+
+model ToolRegistry {
+  id                       String                  @id @default(uuid())
+  key                      String                  @unique
+  description              String                  @db.Text
+  method                   ToolHttpMethod          @default(GET)
+  endpointPath             String
+  scopes                   Json
+  inputSchema              Json?
+  enabled                  Boolean                 @default(true)
+  integrationApplicationId String?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  integrationApplication   IntegrationApplication? @relation(fields: [integrationApplicationId], references: [id], onDelete: Restrict)
+  versions                 AgentVersionTool[]
+
+  @@index([integrationApplicationId, enabled])
+}
+
+model AgentVersionTool {
+  agentVersionId String
+  toolId         String
+  enabled        Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  agentVersion   AgentVersion @relation(fields: [agentVersionId], references: [id], onDelete: Cascade)
+  tool           ToolRegistry @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@id([agentVersionId, toolId])
+}
+
+model AgentConversation {
+  id             String                  @id @default(uuid())
+  productKey     String                  @default("mytrainx")
+  userId         String
+  agentId        String
+  agentVersionId String
+  channel        AgentChannel            @default(web)
+  title          String?
+  status         AgentConversationStatus @default(active)
+  handoffState   HandoffState            @default(none)
+  threadContext  Json?
+  summary        String?                 @db.Text
+  lastMessageAt  DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  agent          Agent                   @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  agentVersion   AgentVersion            @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  messages       AgentMessage[]
+  runs           AgentRun[]
+  memoryCandidates MemoryCandidate[]
+
+  @@index([productKey, userId, agentId, updatedAt])
+  @@index([userId, status])
+}
+
+model AgentMessage {
+  id             String             @id @default(uuid())
+  conversationId String
+  role           AgentMessageRole
+  content        String             @db.Text
+  status         AgentMessageStatus @default(completed)
+  metadata       Json?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  conversation   AgentConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model AgentRun {
+  id                 String         @id @default(uuid())
+  conversationId     String
+  agentVersionId     String
+  requestId          String         @unique
+  userMessageId      String?
+  assistantMessageId String?
+  status             AgentRunStatus @default(queued)
+  provider           String
+  model              String
+  inputTokens        Int?
+  outputTokens       Int?
+  totalTokens        Int?
+  estimatedCostUsd   Decimal?       @db.Decimal(18, 8)
+  latencyMs          Int?
+  errorCode          String?
+  errorMessage       String?        @db.Text
+  startedAt          DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  conversation       AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  agentVersion       AgentVersion      @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  toolCalls          AgentToolCall[]
+
+  @@index([conversationId, createdAt])
+  @@index([status, createdAt])
+}
+
+model AgentToolCall {
+  id          String         @id @default(uuid())
+  runId       String
+  toolKey     String
+  requestId   String
+  status      ToolCallStatus @default(pending)
+  input       Json
+  output      Json?
+  errorCode   String?
+  errorMessage String?       @db.Text
+  durationMs  Int?
+  startedAt   DateTime       @default(now())
+  completedAt DateTime?
+  run         AgentRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, startedAt])
+  @@index([toolKey, startedAt])
+}
+
+model MemoryCandidate {
+  id              String                @id @default(uuid())
+  productKey      String                @default("mytrainx")
+  userId          String
+  conversationId  String
+  sourceMessageId String?
+  key             String
+  value           Json
+  reason          String?               @db.Text
+  confidence      Float                 @default(0.5)
+  status          MemoryCandidateStatus @default(pending)
+  reviewedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  conversation    AgentConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([productKey, userId, status, createdAt])
+}
+
+model OperationalMemory {
+  id          String                  @id @default(uuid())
+  productKey  String                  @default("mytrainx")
+  userId      String
+  agentKey    String?
+  key         String
+  value       Json
+  source      String
+  confidence  Float                   @default(1)
+  status      OperationalMemoryStatus @default(active)
+  expiresAt   DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([productKey, userId, status])
+  @@index([agentKey, userId])
+}
+
+model ChannelIdentityLink {
+  id                 String       @id @default(uuid())
+  productKey         String       @default("mytrainx")
+  userId             String
+  channel            AgentChannel
+  externalIdentifier String
+  verified           Boolean      @default(false)
+  metadata           Json?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([productKey, channel, externalIdentifier])
+  @@index([productKey, userId])
+}
+
+
+model AgentGatewayReplay {
+  id        String   @id @default(uuid())
+  requestId String   @unique
+  service   String
+  userId    String
+  method    String
+  pathname  String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([service, userId, createdAt])
 }

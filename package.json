@@ -11,7 +11,12 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "agent:bootstrap": "node scripts/bootstrap-agent-core.mjs",
+    "agent:test": "node scripts/test-agent-core.mjs",
+    "integrations:bootstrap": "node scripts/bootstrap-integrations.mjs",
+    "integrations:credential": "node scripts/set-integration-credential.mjs",
+    "agent:sara": "node scripts/bootstrap-sara-concierge.mjs"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -35,7 +40,8 @@
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "@types/express": "^5.0.3"
   },
   "engines": {
     "node": ">=22.0.0"
