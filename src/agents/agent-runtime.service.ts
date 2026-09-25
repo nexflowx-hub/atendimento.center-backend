@@ -48,7 +48,7 @@ export class AgentRuntimeService {
     principal: AgentPrincipal,
     input: CreateAgentConversationDto,
   ) {
-    const version = await this.activeVersion(agentKey);
+    const version = await this.activeVersion(agentKey, principal.productKey);
 
     return this.prisma.agentConversation.create({
       data: {
@@ -68,7 +68,7 @@ export class AgentRuntimeService {
   }
 
   async listConversations(agentKey: string, principal: AgentPrincipal) {
-    const agent = await this.findAgent(agentKey);
+    const agent = await this.findAgent(agentKey, principal.productKey);
 
     return this.prisma.agentConversation.findMany({
       where: {
@@ -500,8 +500,8 @@ export class AgentRuntimeService {
     return [{ role: 'system', content: platformPolicy }, ...history];
   }
 
-  private async activeVersion(agentKey: string) {
-    const agent = await this.findAgent(agentKey);
+  private async activeVersion(agentKey: string, productKey: string) {
+    const agent = await this.findAgent(agentKey, productKey);
     const version = await this.prisma.agentVersion.findFirst({
       where: { agentId: agent.id, active: true },
       orderBy: { version: 'desc' },
@@ -510,11 +510,27 @@ export class AgentRuntimeService {
     return version;
   }
 
-  private async findAgent(agentKey: string) {
-    const agent = await this.prisma.agent.findUnique({ where: { key: agentKey } });
-    if (!agent || agent.status !== AgentStatus.active) {
+  private async findAgent(agentKey: string, productKey: string) {
+    const agent = await this.prisma.agent.findFirst({
+      where: {
+        key: agentKey,
+        status: AgentStatus.active,
+        integrations: {
+          some: {
+            enabled: true,
+            application: {
+              key: productKey,
+              status: 'active',
+            },
+          },
+        },
+      },
+    });
+
+    if (!agent) {
       throw new NotFoundException('AGENT_NOT_FOUND');
     }
+
     return agent;
   }
 
@@ -523,7 +539,7 @@ export class AgentRuntimeService {
     conversationId: string,
     principal: AgentPrincipal,
   ) {
-    const agent = await this.findAgent(agentKey);
+    const agent = await this.findAgent(agentKey, principal.productKey);
     const conversation = await this.prisma.agentConversation.findFirst({
       where: {
         id: conversationId,
