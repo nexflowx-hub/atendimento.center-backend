@@ -34,22 +34,6 @@ function encrypt(value) {
   ].join('.');
 }
 
-async function replaceCredential(applicationId, type) {
-  await prisma.integrationCredential.updateMany({
-    where: { applicationId, type, active: true },
-    data: { active: false, rotatedAt: new Date() },
-  });
-
-  await prisma.integrationCredential.create({
-    data: {
-      applicationId,
-      type,
-      encryptedValue: encrypt(secret),
-      active: true,
-    },
-  });
-}
-
 async function main() {
   const application = await prisma.integrationApplication.findUniqueOrThrow({
     where: { key: 'mytrainx' },
