@@ -4,7 +4,9 @@ import { AgentRuntimeService } from './agent-runtime.service';
 import { AgentsController } from './agents.controller';
 import { MemoryService } from './memory.service';
 import { ModelGatewayService } from './model-gateway.service';
-import { MyTrainXToolService } from './mytrainx-tool.service';
+import { IntegrationCryptoService } from './integration-crypto.service';
+import { IntegrationRegistryService } from './integration-registry.service';
+import { IntegrationToolService } from './integration-tool.service';
 
 @Module({
   controllers: [AgentsController],
@@ -13,7 +15,9 @@ import { MyTrainXToolService } from './mytrainx-tool.service';
     AgentRuntimeService,
     MemoryService,
     ModelGatewayService,
-    MyTrainXToolService,
+    IntegrationCryptoService,
+    IntegrationRegistryService,
+    IntegrationToolService,
   ],
 })
 export class AgentsModule {}
