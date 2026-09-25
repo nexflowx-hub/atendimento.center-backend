@@ -20,8 +20,18 @@ case "$OPERATION" in
     INSTANCE_NAME="treinomilitar-wa"
     INBOX_NAME="TreinoMilitar • WhatsApp"
     ;;
+  mypets)
+    DISPLAY_NAME="MyPets"
+    INSTANCE_NAME="mypets-wa"
+    INBOX_NAME="MyPets • WhatsApp"
+    ;;
+  atlashub)
+    DISPLAY_NAME="AtlasHub"
+    INSTANCE_NAME="atlashub-wa"
+    INBOX_NAME="AtlasHub • WhatsApp"
+    ;;
   *)
-    echo "Uso: $0 {facelove|treinomilitar}" >&2
+    echo "Uso: $0 {facelove|treinomilitar|mypets|atlashub}" >&2
     exit 1
     ;;
 esac
