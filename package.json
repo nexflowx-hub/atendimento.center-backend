@@ -15,7 +15,8 @@
     "agent:bootstrap": "node scripts/bootstrap-agent-core.mjs",
     "agent:test": "node scripts/test-agent-core.mjs",
     "integrations:bootstrap": "node scripts/bootstrap-integrations.mjs",
-    "integrations:credential": "node scripts/set-integration-credential.mjs"
+    "integrations:credential": "node scripts/set-integration-credential.mjs",
+    "agent:sara": "node scripts/bootstrap-sara-concierge.mjs"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
