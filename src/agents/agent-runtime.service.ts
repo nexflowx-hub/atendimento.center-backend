@@ -23,7 +23,7 @@ import {
   type ModelToolCall,
   type ModelToolDefinition,
 } from './model-gateway.service';
-import { MyTrainXToolService } from './mytrainx-tool.service';
+import { IntegrationToolService } from './integration-tool.service';
 import { initializeSse, writeSse } from './sse';
 
 type ActiveRun = {
@@ -39,7 +39,7 @@ export class AgentRuntimeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly modelGateway: ModelGatewayService,
-    private readonly tools: MyTrainXToolService,
+    private readonly tools: IntegrationToolService,
     private readonly memory: MemoryService,
   ) {}
 
