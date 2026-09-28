@@ -36,6 +36,23 @@ Typebot and n8n are not the source of long-term relationship memory.
 
 ## Runtime
 
+### Canonical inbound
+
+`POST /api/v1/relationship/inbound`
+
+This is the normalized channel entrypoint for authenticated internal orchestration (for example n8n). It:
+
+- resolves the configured `ChannelAccount`;
+- selects the active `AgentBinding`;
+- normalizes WhatsApp identities to exact E.164 or keeps platform-scoped social IDs;
+- creates/reuses the Atlas `Contact` and `ContactIdentity`;
+- creates/reuses the `ConversationRef`;
+- returns non-text media events for the multimodal pipeline;
+- sends text events directly through the Relationship Engine;
+- uses the provider `eventId` for response idempotency.
+
+Provider-specific webhook verification and outbound delivery remain adapter/orchestration responsibilities.
+
 ### Context
 
 `GET /api/v1/relationship/:agentCode/contacts/:contactId/context`

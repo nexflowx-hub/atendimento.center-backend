@@ -10,7 +10,7 @@ import {
 import type { Tenant } from '@prisma/client';
 import { CurrentTenant } from '../auth/auth.decorators';
 import { SupabaseAuthGuard, TenantGuard } from '../auth/auth.guards';
-import { RelationshipRespondDto } from './relationship.dto';
+import { CanonicalInboundDto, RelationshipRespondDto } from './relationship.dto';
 import { RelationshipService } from './relationship.service';
 
 @Controller('relationship')
@@ -31,6 +31,14 @@ export class RelationshipController {
       contactId,
       conversationRefId,
     );
+  }
+
+  @Post('inbound')
+  inbound(
+    @CurrentTenant() tenant: Tenant,
+    @Body() body: CanonicalInboundDto,
+  ) {
+    return this.relationships.inbound(tenant, body);
   }
 
   @Post('respond')
