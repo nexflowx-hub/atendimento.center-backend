@@ -26,11 +26,12 @@ export class AtlasWorkerService {
       Number(this.config.get<string>('ATLAS_WORKER_INTERVAL_MS') ?? 5_000),
     );
 
-    this.logger.log(`Atlas worker iniciado; intervalo=${intervalMs}ms`);
+    const mode = (this.config.get<string>('ATLAS_WORKER_MODE') ?? 'all').trim().toLowerCase();
+    this.logger.log(`Atlas worker iniciado; mode=${mode}; intervalo=${intervalMs}ms`);
 
     while (!this.stopped) {
       try {
-        await this.tick();
+        await this.tick(mode);
       } catch (error) {
         this.logger.error(error instanceof Error ? error.stack : String(error));
       }
@@ -39,10 +40,19 @@ export class AtlasWorkerService {
     }
   }
 
-  private async tick(): Promise<void> {
-    await this.submitPaidSmmOrders();
-    await this.pollSmmOrders();
-    await this.processSignalsJobs();
+  private async tick(mode: string): Promise<void> {
+    if (mode === 'all' || mode === 'smm') {
+      await this.submitPaidSmmOrders();
+      await this.pollSmmOrders();
+    }
+
+    if (mode === 'all' || mode === 'signals') {
+      await this.processSignalsJobs();
+    }
+
+    if (!['all', 'smm', 'signals'].includes(mode)) {
+      throw new Error(`ATLAS_WORKER_MODE inválido: ${mode}`);
+    }
   }
 
   private async submitPaidSmmOrders(): Promise<void> {
