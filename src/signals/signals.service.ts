@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Tenant } from '@prisma/client';
+import { Prisma, type Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateSignalJobDto, ListSignalsQuery } from './signals.dto';
 
@@ -59,7 +59,7 @@ export class SignalsService {
         sourceId: body.sourceId,
         taskType: body.taskType.trim(),
         target: body.target.trim(),
-        params: body.params ?? {},
+        params: (body.params ?? {}) as Prisma.InputJsonValue,
         priority: body.priority ?? 100,
         status: 'queued',
       },
