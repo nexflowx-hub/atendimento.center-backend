@@ -9,6 +9,7 @@ import { HealthController } from './health.controller';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { SignalsModule } from './signals/signals.module';
 import { SmmModule } from './smm/smm.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SmmModule } from './smm/smm.module';
     AgentsModule,
     SmmModule,
     SignalsModule,
+    WebhooksModule,
   ],
   controllers: [HealthController],
 })

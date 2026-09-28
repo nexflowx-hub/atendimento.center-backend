@@ -171,7 +171,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "8080"
-      CORS_ORIGINS: https://atendimento.center,https://app.atendimento.center
+      CORS_ORIGINS: https://atendimento.center,https://app.atendimento.center,https://atlashub.digital,https://www.atlashub.digital,https://growth.atlashub.digital
       DATABASE_URL: ${SUPABASE_DATABASE_URL}
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
@@ -181,6 +181,9 @@ services:
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4.1-mini}
+      XPAYMENTS_BASE_URL: ${XPAYMENTS_BASE_URL:-https://api.xpayments.digital/api/v1}
+      XPAYMENTS_API_KEY: ${XPAYMENTS_API_KEY:-}
+      XPAYMENTS_WEBHOOK_SECRET: ${XPAYMENTS_WEBHOOK_SECRET:-}
     networks:
       - atendimento_internal
     depends_on:
@@ -188,6 +191,44 @@ services:
         condition: service_started
       evolution:
         condition: service_started
+
+
+  atlas_worker:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${SUPABASE_DATABASE_URL}
+      ATLAS_WORKER_MODE: smm
+      ATLAS_WORKER_INTERVAL_MS: ${ATLAS_WORKER_INTERVAL_MS:-5000}
+      SMM_PROVIDER_PRIMARY_API_KEY: ${SMM_PROVIDER_PRIMARY_API_KEY:-}
+      SMM_PROVIDER_FALLBACK_API_KEY: ${SMM_PROVIDER_FALLBACK_API_KEY:-}
+    networks:
+      - atendimento_internal
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  atlas_signals_worker:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${SUPABASE_DATABASE_URL}
+      ATLAS_WORKER_MODE: signals
+      ATLAS_WORKER_INTERVAL_MS: ${ATLAS_SIGNALS_WORKER_INTERVAL_MS:-5000}
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
+    networks:
+      - atendimento_internal
+    depends_on:
+      redis:
+        condition: service_healthy
 
   frontend:
     build:
