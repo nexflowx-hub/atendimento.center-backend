@@ -1,19 +1,18 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import type { Tenant } from '@prisma/client';
+import { Controller, Get, Headers, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { CurrentTenant, CurrentUser } from './auth.decorators';
-import { SupabaseAuthGuard, TenantGuard } from './auth.guards';
+import { CurrentUser } from './auth.decorators';
+import { SupabaseAuthGuard } from './auth.guards';
 import type { SupabaseUser } from './auth.types';
 
 @Controller('me')
-@UseGuards(SupabaseAuthGuard, TenantGuard)
+@UseGuards(SupabaseAuthGuard)
 export class AuthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
   async me(
     @CurrentUser() user: SupabaseUser,
-    @CurrentTenant() tenant: Tenant,
+    @Headers('x-tenant-slug') requestedSlug?: string,
   ): Promise<Record<string, unknown>> {
     const memberships = await this.prisma.tenantUser.findMany({
       where: {
@@ -26,15 +25,29 @@ export class AuthController {
         },
       },
       include: {
-        tenant: true,
+        tenant: {
+          include: {
+            organization: true,
+            entitlements: {
+              where: { status: { in: ['active', 'trial'] } },
+              orderBy: { capability: 'asc' },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'asc',
       },
     });
 
+    const selected =
+      (requestedSlug
+        ? memberships.find((membership) => membership.tenant.slug === requestedSlug.trim())
+        : undefined) ?? memberships[0] ?? null;
+
     return {
       success: true,
+      onboardingRequired: memberships.length === 0,
       user: {
         id: user.id,
         email: user.email ?? null,
@@ -44,18 +57,34 @@ export class AuthController {
           user.email ??
           'Utilizador',
       },
-      tenant: {
-        id: tenant.id,
-        name: tenant.name,
-        slug: tenant.slug,
-        status: tenant.status,
-      },
+      tenant: selected
+        ? {
+            id: selected.tenant.id,
+            name: selected.tenant.name,
+            slug: selected.tenant.slug,
+            product: selected.tenant.product,
+            status: selected.tenant.status,
+            plan: selected.tenant.plan,
+            role: selected.role,
+            organization: selected.tenant.organization
+              ? {
+                  id: selected.tenant.organization.id,
+                  name: selected.tenant.organization.name,
+                  slug: selected.tenant.organization.slug,
+                }
+              : null,
+            capabilities: selected.tenant.entitlements.map((item) => item.capability),
+          }
+        : null,
       tenants: memberships.map((membership) => ({
         id: membership.tenant.id,
         name: membership.tenant.name,
         slug: membership.tenant.slug,
+        product: membership.tenant.product,
         status: membership.tenant.status,
+        plan: membership.tenant.plan,
         role: membership.role,
+        capabilities: membership.tenant.entitlements.map((item) => item.capability),
       })),
     };
   }
