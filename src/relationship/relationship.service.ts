@@ -6,7 +6,7 @@ import {
 import { Prisma, type Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { OpenRouterService } from '../integrations/openrouter.service';
-import { RelationshipRespondDto } from './relationship.dto';
+import { CanonicalInboundDto, RelationshipRespondDto } from './relationship.dto';
 import {
   RELATIONSHIP_STAGES,
   type MemoryCandidate,
@@ -185,6 +185,190 @@ export class RelationshipService {
       openLoops,
       worldState,
       summary,
+    };
+  }
+
+  async inbound(tenant: Tenant, body: CanonicalInboundDto) {
+    const channelAccount = await this.prisma.channelAccount.findFirst({
+      where: {
+        tenantId: tenant.id,
+        channelType: body.channel,
+        externalAccountId: body.channelAccount,
+      },
+    });
+
+    if (!channelAccount) {
+      throw new NotFoundException(
+        'Conta de canal não encontrada para este tenant.',
+      );
+    }
+
+    if (channelAccount.status === 'disabled') {
+      throw new BadRequestException('Conta de canal está desativada.');
+    }
+
+    const binding = await this.prisma.agentBinding.findFirst({
+      where: {
+        tenantId: tenant.id,
+        channelAccountId: channelAccount.id,
+        enabled: true,
+      },
+      include: { agent: true },
+      orderBy: { priority: 'asc' },
+    });
+
+    if (!binding?.agent || !binding.agent.enabled) {
+      throw new NotFoundException(
+        'Nenhum agente ativo está associado a esta conta de canal.',
+      );
+    }
+
+    const identity = resolveCanonicalIdentity(body);
+    const settings = asRecord(channelAccount.settings);
+    const locale = readString(settings.locale);
+
+    let contactIdentity = await this.prisma.contactIdentity.findFirst({
+      where: {
+        tenantId: tenant.id,
+        channelAccountId: channelAccount.id,
+        identityType: identity.type,
+        identityValue: identity.value,
+      },
+      include: { contact: true },
+    });
+
+    if (!contactIdentity) {
+      const externalKey = [
+        body.channelAccount,
+        identity.type,
+        identity.value,
+      ].join(':');
+
+      let contact = await this.prisma.contact.findFirst({
+        where: {
+          tenantId: tenant.id,
+          externalKey,
+        },
+      });
+
+      if (!contact) {
+        contact = await this.prisma.contact.create({
+          data: {
+            tenantId: tenant.id,
+            externalKey,
+            phone: identity.type === 'whatsapp' ? identity.value : null,
+            source: body.channel,
+            locale,
+            metadata: {
+              first_channel_account: body.channelAccount,
+            },
+          },
+        });
+      }
+
+      contactIdentity = await this.prisma.contactIdentity.create({
+        data: {
+          tenantId: tenant.id,
+          contactId: contact.id,
+          channelAccountId: channelAccount.id,
+          identityType: identity.type,
+          identityValue: identity.value,
+          verifiedLink: true,
+          metadata: {
+            source: 'provider_event',
+          },
+        },
+        include: { contact: true },
+      });
+    }
+
+    let conversation = await this.prisma.conversationRef.findFirst({
+      where: {
+        channelAccountId: channelAccount.id,
+        externalConversationId: body.externalConversationId,
+      },
+    });
+
+    if (!conversation) {
+      conversation = await this.prisma.conversationRef.create({
+        data: {
+          tenantId: tenant.id,
+          contactId: contactIdentity.contactId,
+          channelAccountId: channelAccount.id,
+          externalConversationId: body.externalConversationId,
+          status: 'open',
+          metadata: {
+            source: 'canonical_inbound',
+          },
+        },
+      });
+    } else if (
+      conversation.contactId &&
+      conversation.contactId !== contactIdentity.contactId
+    ) {
+      throw new BadRequestException(
+        'A conversa recebida já está associada a outro contato.',
+      );
+    } else if (!conversation.contactId) {
+      conversation = await this.prisma.conversationRef.update({
+        where: { id: conversation.id },
+        data: { contactId: contactIdentity.contactId },
+      });
+    }
+
+    const normalizedEvent = {
+      event_id: body.eventId,
+      channel: body.channel,
+      channel_account: body.channelAccount,
+      conversation_external_id: body.externalConversationId,
+      sender_external_id: body.senderExternalId ?? null,
+      sender_phone_e164:
+        identity.type === 'whatsapp' ? identity.value : null,
+      direction: 'inbound',
+      message_type: body.messageType,
+      text: body.text ?? null,
+      attachments: body.attachments ?? [],
+      metadata: body.metadata ?? {},
+    };
+
+    if (body.messageType !== 'text') {
+      return {
+        accepted: true,
+        processed: false,
+        requiresMultimodalProcessing: true,
+        contactId: contactIdentity.contactId,
+        conversationRefId: conversation.id,
+        agentCode: binding.agent.code,
+        normalizedEvent,
+      };
+    }
+
+    const text = body.text?.trim();
+    if (!text) {
+      throw new BadRequestException('Evento de texto sem conteúdo textual.');
+    }
+
+    const response = await this.respond(tenant, {
+      agentCode: binding.agent.code,
+      contactId: contactIdentity.contactId,
+      eventId: body.eventId,
+      conversationRefId: conversation.id,
+      currentMessage: text,
+      recentConversation: body.recentConversation,
+      runtime: {
+        ...(body.runtime ?? {}),
+        channel_event: normalizedEvent,
+      },
+    });
+
+    return {
+      accepted: true,
+      processed: true,
+      contactId: contactIdentity.contactId,
+      conversationRefId: conversation.id,
+      agentCode: binding.agent.code,
+      normalizedEvent,
+      ...response,
     };
   }
 
@@ -652,6 +836,48 @@ export class RelationshipService {
       lastInteractionAt: null,
     };
   }
+}
+
+function resolveCanonicalIdentity(
+  body: CanonicalInboundDto,
+): { type: string; value: string } {
+  if (body.channel === 'whatsapp') {
+    const candidate = body.senderPhoneE164 ?? body.senderExternalId;
+    if (!candidate) {
+      throw new BadRequestException(
+        'Evento WhatsApp sem identidade do remetente.',
+      );
+    }
+
+    const value = normalizeE164(candidate);
+    if (!value) {
+      throw new BadRequestException(
+        'Identidade WhatsApp não pôde ser normalizada para E.164.',
+      );
+    }
+
+    return { type: 'whatsapp', value };
+  }
+
+  const externalId = body.senderExternalId?.trim();
+  if (!externalId) {
+    throw new BadRequestException(
+      'Evento de canal sem senderExternalId.',
+    );
+  }
+
+  return {
+    type: body.channel,
+    value: externalId,
+  };
+}
+
+function normalizeE164(value: string): string | null {
+  const beforeJid = value.trim().split('@')[0];
+  const digits = beforeJid.replace(/\D/g, '');
+
+  if (digits.length < 8 || digits.length > 15) return null;
+  return '+' + digits;
 }
 
 function sanitizeRelationshipDelta(
