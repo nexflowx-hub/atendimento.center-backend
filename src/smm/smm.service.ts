@@ -10,6 +10,7 @@ import {
   CreateSmmOrderDto,
   ListSmmQuery,
   ListSmmServicesQuery,
+  PublicSmmOffersQuery,
   UpsertSmmOfferDto,
 } from './smm.dto';
 
@@ -20,6 +21,74 @@ export class SmmService {
     private readonly xpayments: XPaymentsService,
     private readonly config: ConfigService,
   ) {}
+
+  async listPublicOffers(tenantSlug: string, query: PublicSmmOffersQuery) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        slug: tenantSlug.trim().toLowerCase(),
+        status: { in: ['trial', 'active'] },
+      },
+      select: { id: true, slug: true, name: true },
+    });
+    if (!tenant) throw new NotFoundException('Storefront SMM não encontrado.');
+
+    const q = query.q?.trim();
+    const offers = await this.prisma.smmOffer.findMany({
+      where: {
+        tenantId: tenant.id,
+        active: true,
+        service: {
+          active: true,
+          provider: { status: 'active' },
+          ...(query.platform ? { platform: query.platform.trim().toLowerCase() } : {}),
+          ...(query.category
+            ? { category: { contains: query.category.trim(), mode: 'insensitive' } }
+            : {}),
+        },
+        ...(q
+          ? {
+              OR: [
+                { publicName: { contains: q, mode: 'insensitive' } },
+                { description: { contains: q, mode: 'insensitive' } },
+                { service: { category: { contains: q, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        publicName: true,
+        description: true,
+        salePrice: true,
+        currency: true,
+        pricingModel: true,
+        unitSize: true,
+        sortOrder: true,
+        service: {
+          select: {
+            platform: true,
+            category: true,
+            serviceType: true,
+            minQuantity: true,
+            maxQuantity: true,
+            refillSupported: true,
+            cancelSupported: true,
+          },
+        },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { publicName: 'asc' }],
+      take: query.limit ?? 100,
+    });
+
+    return {
+      success: true,
+      storefront: {
+        tenant: tenant.slug,
+        name: tenant.name,
+      },
+      offers,
+    };
+  }
 
   listProviders() {
     return this.prisma.smmProvider.findMany({

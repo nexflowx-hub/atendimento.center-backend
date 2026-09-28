@@ -149,3 +149,28 @@ export class UpsertSmmOfferDto {
   @IsObject()
   metadata?: Record<string, unknown>;
 }
+
+
+export class PublicSmmOffersQuery {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  platform?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  category?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  q?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  limit?: number = 100;
+}
