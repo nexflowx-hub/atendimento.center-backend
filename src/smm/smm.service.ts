@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Tenant } from '@prisma/client';
+import { Prisma, type Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { XPaymentsService } from '../integrations/xpayments.service';
 import { CreateSmmOrderDto, ListSmmQuery } from './smm.dto';
@@ -95,11 +95,11 @@ export class SmmService {
           paymentSystem: 'xpayments',
           paymentReference: reference,
           status: 'payment_pending',
-          metadata: {
+          metadata: ({
             ...((order.metadata ?? {}) as object),
             checkoutSessionId: checkout.sessionId,
             checkoutUrl: checkout.checkoutUrl,
-          },
+          }) as Prisma.InputJsonValue,
         },
       }),
       this.prisma.smmOrderEvent.create({
@@ -148,6 +148,11 @@ export class SmmService {
       if (!contact) throw new NotFoundException('Contacto não encontrado neste tenant.');
     }
 
+    const amount =
+      offer.pricingModel === 'fixed'
+        ? offer.salePrice
+        : offer.salePrice.mul(body.quantity).div(offer.unitSize);
+
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.smmOrder.create({
         data: {
@@ -157,15 +162,17 @@ export class SmmService {
           serviceId: offer.serviceId,
           target: body.target.trim(),
           quantity: body.quantity,
-          amount: offer.salePrice,
+          amount,
           currency: offer.currency,
           paymentSystem: body.paymentSystem,
           paymentReference: body.paymentReference,
           status: body.paymentReference ? 'payment_pending' : 'quote_created',
-          metadata: {
+          metadata: ({
             ...(body.metadata ?? {}),
-            pricingModel: 'offer_total_v1',
-          },
+            pricingModel: offer.pricingModel,
+            unitSize: offer.unitSize,
+            unitPrice: offer.salePrice.toString(),
+          }) as Prisma.InputJsonValue,
         },
       });
 
@@ -177,7 +184,7 @@ export class SmmService {
           payload: {
             offerId: offer.id,
             quantity: body.quantity,
-            amount: offer.salePrice.toString(),
+            amount: amount.toString(),
             currency: offer.currency,
           },
         },
