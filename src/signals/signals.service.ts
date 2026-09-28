@@ -1,11 +1,59 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
-import { CreateSignalJobDto, ListSignalsQuery } from './signals.dto';
+import { ConfigureSignalConnectorDto, CreateSignalJobDto, ListSignalsQuery } from './signals.dto';
 
 @Injectable()
 export class SignalsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  listConnectors() {
+    return this.prisma.signalConnector.findMany({
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        connectorType: true,
+        status: true,
+        settings: true,
+        updatedAt: true,
+        _count: {
+          select: { sources: true, jobs: true },
+        },
+      },
+      orderBy: [{ status: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async configureConnector(code: string, body: ConfigureSignalConnectorDto) {
+    const connector = await this.prisma.signalConnector.findUnique({
+      where: { code: code.trim().toLowerCase() },
+    });
+    if (!connector) throw new NotFoundException('Connector Signals não encontrado.');
+
+    return this.prisma.signalConnector.update({
+      where: { id: connector.id },
+      data: {
+        status: body.status ?? connector.status,
+        settings: body.settings
+          ? ({
+              ...((connector.settings ?? {}) as object),
+              ...body.settings,
+              configuredAt: new Date().toISOString(),
+            } as Prisma.InputJsonValue)
+          : undefined,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        connectorType: true,
+        status: true,
+        settings: true,
+        updatedAt: true,
+      },
+    });
+  }
 
   listJobs(tenant: Tenant, query: ListSignalsQuery) {
     return this.prisma.signalJob.findMany({
