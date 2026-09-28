@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Tenant } from '@prisma/client';
+import { Prisma, type Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateAgentDto, CreateFlowDto, UpdateAgentDto, UpdateFlowDto } from './agents.dto';
 
@@ -32,7 +32,7 @@ export class AgentsService {
         systemPrompt: body.systemPrompt ?? '',
         temperature: body.temperature,
         enabled: body.enabled ?? true,
-        config: body.config ?? {},
+        config: (body.config ?? {}) as Prisma.InputJsonValue,
       },
     });
   }
@@ -56,7 +56,7 @@ export class AgentsService {
         systemPrompt: body.systemPrompt,
         temperature: body.temperature,
         enabled: body.enabled,
-        config: body.config,
+        config: body.config as Prisma.InputJsonValue | undefined,
       },
     });
   }
@@ -78,7 +78,7 @@ export class AgentsService {
         conversationalMode: body.conversationalMode ?? 'closed',
         externalId: body.externalId,
         status: body.status ?? 'draft',
-        definition: body.definition ?? {},
+        definition: (body.definition ?? {}) as Prisma.InputJsonValue,
       },
     });
   }
@@ -99,7 +99,7 @@ export class AgentsService {
         conversationalMode: body.conversationalMode,
         externalId: body.externalId,
         status: body.status,
-        definition: body.definition,
+        definition: body.definition as Prisma.InputJsonValue | undefined,
       },
     });
   }
