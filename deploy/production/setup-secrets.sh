@@ -12,7 +12,7 @@ fi
 read -r -p "E-mail ACME/Let's Encrypt [ops@atlasglobal.digital]: " ACME_EMAIL
 ACME_EMAIL=${ACME_EMAIL:-ops@atlasglobal.digital}
 
-read -r -p "Supabase project URL (Auth only): " SUPABASE_URL
+read -r -p "Supabase project URL (Auth + Atlas Platform Core): " SUPABASE_URL
 if [[ -z "$SUPABASE_URL" ]]; then
   echo "SUPABASE_URL é obrigatório." >&2
   exit 1
@@ -22,6 +22,13 @@ read -r -s -p "Supabase publishable/anon key: " SUPABASE_ANON_KEY
 echo
 if [[ -z "$SUPABASE_ANON_KEY" ]]; then
   echo "A publishable/anon key do Supabase é obrigatória." >&2
+  exit 1
+fi
+
+read -r -s -p "Supabase database URL (session pooler/direct): " SUPABASE_DATABASE_URL
+echo
+if [[ -z "$SUPABASE_DATABASE_URL" ]]; then
+  echo "SUPABASE_DATABASE_URL é obrigatório para o Atlas Platform Core." >&2
   exit 1
 fi
 
@@ -54,6 +61,7 @@ CHATWOOT_SECRET_KEY_BASE=$CHATWOOT_SECRET_KEY_BASE
 EVOLUTION_API_KEY=$EVOLUTION_API_KEY
 SUPABASE_URL=$SUPABASE_URL
 SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+SUPABASE_DATABASE_URL=$SUPABASE_DATABASE_URL
 CHATWOOT_API_TOKEN=
 OPENROUTER_API_KEY=$OPENROUTER_API_KEY
 OPENROUTER_MODEL=openai/gpt-4.1-mini
@@ -66,11 +74,12 @@ SMTP_AUTHENTICATION=login
 SMTP_ENABLE_STARTTLS_AUTO=true
 EOF
 chmod 600 .env
-unset SUPABASE_ANON_KEY EVOLUTION_BASIC_PASSWORD
+unset SUPABASE_ANON_KEY SUPABASE_DATABASE_URL EVOLUTION_BASIC_PASSWORD
 
 echo
 printf '%s\n' "Segredos criados em: $SCRIPT_DIR/.env" \
-  "Supabase configurado apenas para Auth; o Core usa PostgreSQL local." \
+  "Supabase configurado para Auth + Atlas Platform Core." \
+  "Chatwoot/Evolution continuam a usar PostgreSQL local isolado." \
   "Evolution API key: guardada no .env" \
   "O registo inicial do Chatwoot está temporariamente ativo." \
   "O ficheiro .env não deve ser enviado ao GitHub."

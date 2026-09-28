@@ -18,17 +18,35 @@ docker compose config >/dev/null
 echo "Atualizando imagens base..."
 docker compose pull caddy postgres redis chatwoot chatwoot_worker evolution
 
-echo "Construindo Atendimento.Center backend e frontend..."
+echo "Construindo Atlas Platform / Atendimento.Center backend e frontend..."
 docker compose build --pull backend frontend
 
-echo "Iniciando PostgreSQL e Redis..."
+echo "Iniciando PostgreSQL local e Redis..."
 docker compose up -d postgres redis
 
 echo "Preparando a base Chatwoot..."
 docker compose run --rm chatwoot bundle exec rails db:chatwoot_prepare
 
-echo "Preparando o esquema próprio no Supabase..."
-docker compose run --rm backend npx prisma db push
+echo "Validando ligação ao Atlas Platform Core..."
+docker compose run --rm backend node - <<'NODE'
+const { PrismaClient } = require('@prisma/client');
+const db = new PrismaClient();
+
+(async () => {
+  await db.$queryRawUnsafe('select 1');
+  console.log('Atlas Platform Core: OK');
+})()
+  .catch((error) => {
+    console.error('Atlas Platform Core: connection failed');
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await db.$disconnect();
+  });
+NODE
+
+echo "Nota: migrations de negócio são versionadas/aplicadas separadamente; o deploy não executa prisma db push."
 
 echo "Iniciando toda a plataforma..."
 docker compose up -d

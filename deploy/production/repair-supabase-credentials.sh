@@ -9,7 +9,7 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-read -r -s -p "Introduza a Database Password REAL do projeto Supabase: " DB_PASSWORD
+read -r -s -p "Introduza a Database Password REAL do projeto Supabase Atlas Platform Core: " DB_PASSWORD
 echo
 
 if [[ -z "$DB_PASSWORD" ]]; then
@@ -71,7 +71,7 @@ DB_PORT=${CONNECTION_PARTS[1]}
 DB_USER=${CONNECTION_PARTS[2]}
 DB_NAME=${CONNECTION_PARTS[3]}
 
-echo "Testando autenticação no Supabase..."
+echo "Testando autenticação no Atlas Platform Core..."
 docker run --rm \
   -e PGPASSWORD="$DB_PASSWORD" \
   postgres:16-alpine \
@@ -81,12 +81,9 @@ docker run --rm \
 
 unset DB_PASSWORD
 
-echo "Aplicando o esquema Prisma..."
-docker compose run --rm backend npx prisma db push
-
-echo "Iniciando/atualizando a plataforma..."
-docker compose up -d
+echo "Migrations não são executadas por este utilitário."
+echo "Recriando os serviços de aplicação para carregar as credenciais atualizadas..."
+docker compose up -d --force-recreate backend frontend
 
 docker compose ps
-
-echo "Credenciais do Supabase corrigidas e validadas."
+echo "Credenciais do Atlas Platform Core corrigidas e validadas."
