@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Tenant } from '@prisma/client';
+import { Prisma, type Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateContactDto, CreateLeadDto, ListCrmQuery, UpdateLeadDto } from './crm.dto';
 
@@ -38,7 +38,7 @@ export class CrmService {
         telegramUsername: body.telegramUsername,
         source: body.source,
         locale: body.locale,
-        metadata: body.metadata ?? {},
+        metadata: (body.metadata ?? {}) as Prisma.InputJsonValue,
       },
     });
   }
@@ -72,7 +72,7 @@ export class CrmService {
         stage: body.stage,
         score: body.score,
         productCode: body.productCode,
-        metadata: body.metadata ?? {},
+        metadata: (body.metadata ?? {}) as Prisma.InputJsonValue,
       },
       include: { contact: true },
     });
@@ -92,7 +92,9 @@ export class CrmService {
         stage: body.stage,
         score: body.score,
         ownerAuthUserId: body.ownerAuthUserId,
-        metadata: body.metadata ? { ...(lead.metadata as object), ...body.metadata } : undefined,
+        metadata: body.metadata
+          ? ({ ...((lead.metadata ?? {}) as object), ...body.metadata } as Prisma.InputJsonValue)
+          : undefined,
       },
       include: { contact: true },
     });
