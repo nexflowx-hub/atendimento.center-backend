@@ -19,7 +19,7 @@ echo "Atualizando imagens base..."
 docker compose pull caddy postgres redis chatwoot chatwoot_worker evolution
 
 echo "Construindo Atlas Platform / Atendimento.Center backend e frontend..."
-docker compose build --pull backend frontend
+docker compose build --pull backend atlas_worker atlas_signals_worker frontend
 
 echo "Iniciando PostgreSQL local e Redis..."
 docker compose up -d postgres redis
@@ -74,6 +74,7 @@ Verificações públicas após o DNS/TLS estar ativo:
 
 Logs:
   docker compose logs -f backend
+  docker compose logs -f atlas_worker atlas_signals_worker
   docker compose logs -f frontend
   docker compose logs -f chatwoot chatwoot_worker
   docker compose logs -f evolution
