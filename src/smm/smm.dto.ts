@@ -1,9 +1,11 @@
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
   Max,
   MaxLength,
@@ -54,4 +56,15 @@ export class CreateSmmOrderDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;
+}
+
+
+export class ConfigureSmmProviderDto {
+  @IsUrl({ require_tld: false })
+  @MaxLength(500)
+  baseUrl!: string;
+
+  @IsOptional()
+  @IsIn(['pending_configuration', 'active', 'disabled'])
+  status?: 'pending_configuration' | 'active' | 'disabled';
 }
