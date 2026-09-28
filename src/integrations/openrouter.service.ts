@@ -8,6 +8,11 @@ export interface AiMessage {
   content: string;
 }
 
+export interface AiCompletionOptions {
+  model?: string;
+  temperature?: number;
+}
+
 @Injectable()
 export class OpenRouterService {
   constructor(
@@ -15,7 +20,10 @@ export class OpenRouterService {
     private readonly config: ConfigService,
   ) {}
 
-  async complete(messages: AiMessage[]): Promise<string> {
+  async complete(
+    messages: AiMessage[],
+    options: AiCompletionOptions = {},
+  ): Promise<string> {
     const apiKey = this.config.get<string>('OPENROUTER_API_KEY');
     if (!apiKey) {
       throw new Error('OPENROUTER_API_KEY is not configured');
@@ -25,13 +33,16 @@ export class OpenRouterService {
       this.http.post(
         'https://openrouter.ai/api/v1/chat/completions',
         {
-          model: this.config.get<string>('OPENROUTER_MODEL') ?? 'openai/gpt-4.1-mini',
+          model:
+            options.model ??
+            this.config.get<string>('OPENROUTER_MODEL') ??
+            'openai/gpt-4.1-mini',
           messages,
-          temperature: 0.2,
+          temperature: options.temperature ?? 0.2,
         },
         {
           headers: {
-            Authorization: `Bearer ${apiKey}`,
+            Authorization: 'Bearer ' + apiKey,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://atendimento.center',
             'X-Title': 'Atendimento.Center',
