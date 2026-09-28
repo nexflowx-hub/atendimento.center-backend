@@ -356,6 +356,7 @@ model ContactIdentity {
   @@unique([tenantId, identityType, identityValue, channelAccountId])
   @@index([tenantId, identityType, identityValue])
   @@index([contactId])
+  @@index([channelAccountId])
   @@map("contact_identities")
   @@schema("channels")
 }
@@ -385,6 +386,7 @@ model RelationshipState {
 
   @@unique([contactId, agentId])
   @@index([tenantId, stage, updatedAt(sort: Desc)])
+  @@index([agentId])
   @@map("relationship_states")
   @@schema("ai")
 }
@@ -410,6 +412,7 @@ model ConversationMemory {
 
   @@index([tenantId, contactId, agentId, status])
   @@index([contactId, agentId, importance(sort: Desc)])
+  @@index([agentId])
   @@map("conversation_memories")
   @@schema("ai")
 }
@@ -429,6 +432,8 @@ model ConversationSummary {
 
   @@unique([conversationRefId, agentId])
   @@index([contactId, agentId])
+  @@index([agentId])
+  @@index([tenantId])
   @@map("conversation_summaries")
   @@schema("ai")
 }
@@ -449,6 +454,8 @@ model OpenLoop {
   agent      Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, contactId, agentId, status])
+  @@index([contactId])
+  @@index([agentId])
   @@map("open_loops")
   @@schema("ai")
 }
@@ -472,6 +479,7 @@ model AgentWorldState {
   agent             Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([agentId, validFrom(sort: Desc)])
+  @@index([tenantId])
   @@map("world_states")
   @@schema("ai")
 }
@@ -499,6 +507,9 @@ model AgentRun {
 
   @@unique([tenantId, eventId])
   @@index([tenantId, contactId, agentId, createdAt(sort: Desc)])
+  @@index([contactId])
+  @@index([agentId])
+  @@index([conversationRefId])
   @@map("agent_runs")
   @@schema("ai")
 }
@@ -522,6 +533,7 @@ model AgentFollowup {
 
   @@index([tenantId, status, earliestAt])
   @@index([contactId, agentId])
+  @@index([agentId])
   @@map("followups")
   @@schema("ai")
 }
