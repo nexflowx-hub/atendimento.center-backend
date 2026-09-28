@@ -1,10 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AgentsModule } from './agents/agents.module';
 import { AuthModule } from './auth/auth.module';
 import { ConversationsModule } from './conversations/conversations.module';
+import { CrmModule } from './crm/crm.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health.controller';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { SignalsModule } from './signals/signals.module';
+import { SmmModule } from './smm/smm.module';
 
 @Module({
   imports: [
@@ -16,6 +20,10 @@ import { IntegrationsModule } from './integrations/integrations.module';
     IntegrationsModule,
     AuthModule,
     ConversationsModule,
+    CrmModule,
+    AgentsModule,
+    SmmModule,
+    SignalsModule,
   ],
   controllers: [HealthController],
 })
