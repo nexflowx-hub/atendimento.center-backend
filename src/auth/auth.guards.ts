@@ -5,9 +5,11 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../database/prisma.service';
 import type { AuthenticatedHttpRequest } from './auth.types';
 import { SupabaseAuthService } from './supabase-auth.service';
+import { TENANT_ROLES_KEY } from './auth.decorators';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
@@ -69,6 +71,30 @@ export class TenantGuard implements CanActivate {
 
     request.membership = membership;
     request.tenant = membership.tenant;
+    return true;
+  }
+}
+
+
+@Injectable()
+export class TenantRoleGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const allowed = this.reflector.getAllAndOverride<string[]>(TENANT_ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (!allowed?.length) return true;
+
+    const request = context.switchToHttp().getRequest<AuthenticatedHttpRequest>();
+    const membership = request.membership;
+
+    if (!membership || !allowed.includes(membership.role)) {
+      throw new ForbiddenException('Perfil sem permissão para esta operação.');
+    }
+
     return true;
   }
 }
