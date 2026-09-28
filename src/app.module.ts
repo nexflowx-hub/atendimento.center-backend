@@ -7,6 +7,7 @@ import { CrmModule } from './crm/crm.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health.controller';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { SignalsModule } from './signals/signals.module';
 import { SmmModule } from './smm/smm.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
@@ -26,6 +27,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     SmmModule,
     SignalsModule,
     WebhooksModule,
+    OnboardingModule,
   ],
   controllers: [HealthController],
 })
