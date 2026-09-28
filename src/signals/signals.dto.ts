@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
@@ -56,4 +57,15 @@ export class CreateSignalJobDto {
   @Min(1)
   @Max(1000)
   priority?: number;
+}
+
+
+export class ConfigureSignalConnectorDto {
+  @IsOptional()
+  @IsIn(['pending_configuration', 'active', 'disabled'])
+  status?: 'pending_configuration' | 'active' | 'disabled';
+
+  @IsOptional()
+  @IsObject()
+  settings?: Record<string, unknown>;
 }
