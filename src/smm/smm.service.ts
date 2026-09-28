@@ -1,15 +1,202 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, type Tenant } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Prisma, type SmmProvider, type Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { resolveSecretRef } from '../execution/secrets';
+import { SmmPanelV2Adapter } from '../execution/smm/smm-panel-v2.adapter';
 import { XPaymentsService } from '../integrations/xpayments.service';
-import { CreateSmmOrderDto, ListSmmQuery } from './smm.dto';
+import { ConfigureSmmProviderDto, CreateSmmOrderDto, ListSmmQuery } from './smm.dto';
 
 @Injectable()
 export class SmmService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xpayments: XPaymentsService,
+    private readonly config: ConfigService,
   ) {}
+
+  listProviders() {
+    return this.prisma.smmProvider.findMany({
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        baseUrl: true,
+        status: true,
+        capabilities: true,
+        metadata: true,
+        updatedAt: true,
+        _count: { select: { services: true } },
+      },
+      orderBy: [{ status: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async configureProvider(code: string, body: ConfigureSmmProviderDto) {
+    const provider = await this.prisma.smmProvider.findUnique({
+      where: { code: code.trim().toLowerCase() },
+      select: { id: true, code: true },
+    });
+    if (!provider) throw new NotFoundException('Provider SMM não encontrado.');
+
+    const baseUrl = body.baseUrl.trim().replace(/\/$/, '');
+    return this.prisma.smmProvider.update({
+      where: { id: provider.id },
+      data: {
+        baseUrl,
+        status: body.status ?? 'pending_configuration',
+        metadata: {
+          configuredAt: new Date().toISOString(),
+        },
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        baseUrl: true,
+        status: true,
+        capabilities: true,
+        metadata: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async syncProvider(code: string) {
+    const provider = await this.prisma.smmProvider.findUnique({
+      where: { code: code.trim().toLowerCase() },
+    });
+    if (!provider) throw new NotFoundException('Provider SMM não encontrado.');
+    if (!provider.baseUrl) {
+      throw new BadRequestException('Provider sem baseUrl configurada.');
+    }
+    if (!provider.secretRef) {
+      throw new BadRequestException('Provider sem secret_ref configurado.');
+    }
+
+    const adapter = this.providerAdapter(provider);
+    const raw = await adapter.services();
+    if (!Array.isArray(raw)) {
+      throw new BadRequestException('Provider não devolveu uma lista de serviços.');
+    }
+
+    let imported = 0;
+    let skipped = 0;
+    const syncedAt = new Date().toISOString();
+    const rateUnitSize = positiveInt(
+      (provider.capabilities as Record<string, unknown> | null)?.rateUnitSize,
+      1000,
+    );
+
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') {
+        skipped += 1;
+        continue;
+      }
+
+      const row = item as Record<string, unknown>;
+      const providerServiceId = firstString(row.service, row.id);
+      const name = firstString(row.name);
+      if (!providerServiceId || !name) {
+        skipped += 1;
+        continue;
+      }
+
+      const category = firstString(row.category) ?? 'Uncategorized';
+      const serviceType = firstString(row.type) ?? 'default';
+      const rate = nullableDecimal(row.rate);
+      const minQuantity = nullableInt(row.min);
+      const maxQuantity = nullableInt(row.max);
+
+      await this.prisma.smmService.upsert({
+        where: {
+          providerId_providerServiceId: {
+            providerId: provider.id,
+            providerServiceId,
+          },
+        },
+        update: {
+          platform: inferPlatform(name, category),
+          category,
+          serviceType,
+          name,
+          description: firstString(row.description),
+          minQuantity,
+          maxQuantity,
+          costAmount: rate,
+          costCurrency: firstString(row.currency)?.toUpperCase() ?? 'USD',
+          costUnitSize: rateUnitSize,
+          refillSupported: toBoolean(row.refill),
+          cancelSupported: toBoolean(row.cancel),
+          active: true,
+          metadata: {
+            dripfeed: row.dripfeed ?? null,
+            syncedAt,
+            providerPayload: row,
+          } as Prisma.InputJsonValue,
+        },
+        create: {
+          providerId: provider.id,
+          providerServiceId,
+          platform: inferPlatform(name, category),
+          category,
+          serviceType,
+          name,
+          description: firstString(row.description),
+          minQuantity,
+          maxQuantity,
+          costAmount: rate,
+          costCurrency: firstString(row.currency)?.toUpperCase() ?? 'USD',
+          costUnitSize: rateUnitSize,
+          refillSupported: toBoolean(row.refill),
+          cancelSupported: toBoolean(row.cancel),
+          active: true,
+          metadata: {
+            dripfeed: row.dripfeed ?? null,
+            syncedAt,
+            providerPayload: row,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      imported += 1;
+    }
+
+    await this.prisma.smmProvider.update({
+      where: { id: provider.id },
+      data: {
+        status: 'active',
+        metadata: {
+          ...((provider.metadata ?? {}) as object),
+          lastCatalogSyncAt: syncedAt,
+          lastCatalogServiceCount: imported,
+          lastCatalogSkipped: skipped,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      success: true,
+      provider: provider.code,
+      imported,
+      skipped,
+      syncedAt,
+    };
+  }
+
+  private providerAdapter(provider: SmmProvider): SmmPanelV2Adapter {
+    const capabilities = (provider.capabilities ?? {}) as Record<string, unknown>;
+    const apiStyle = String(capabilities.apiStyle ?? 'smm-panel-v2');
+
+    if (apiStyle !== 'smm-panel-v2') {
+      throw new BadRequestException(`Adapter SMM não suportado: ${apiStyle}`);
+    }
+    if (!provider.baseUrl) throw new BadRequestException('Provider sem baseUrl configurada.');
+
+    return new SmmPanelV2Adapter(
+      provider.baseUrl,
+      resolveSecretRef(this.config, provider.secretRef),
+    );
+  }
 
   listOffers(tenant: Tenant) {
     return this.prisma.smmOffer.findMany({
@@ -193,4 +380,65 @@ export class SmmService {
       return order;
     });
   }
+}
+
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  }
+  return undefined;
+}
+
+function nullableInt(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function nullableDecimal(value: unknown): Prisma.Decimal | null {
+  if (value === null || value === undefined || value === '') return null;
+  try {
+    return new Prisma.Decimal(String(value));
+  } catch {
+    return null;
+  }
+}
+
+function positiveInt(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function toBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    return ['1', 'true', 'yes', 'y', 'available'].includes(value.trim().toLowerCase());
+  }
+  return false;
+}
+
+function inferPlatform(name: string, category: string): string {
+  const value = `${category} ${name}`.toLowerCase();
+  const rules: Array<[string, string[]]> = [
+    ['instagram', ['instagram', ' ig ']],
+    ['tiktok', ['tiktok', 'tik tok']],
+    ['youtube', ['youtube', 'yt ']],
+    ['facebook', ['facebook', 'fb ']],
+    ['telegram', ['telegram']],
+    ['x', ['twitter', ' x.com', ' x ']],
+    ['linkedin', ['linkedin']],
+    ['threads', ['threads']],
+    ['spotify', ['spotify']],
+    ['twitch', ['twitch']],
+    ['discord', ['discord']],
+    ['website', ['website traffic', 'web traffic', 'traffic']],
+  ];
+
+  for (const [platform, needles] of rules) {
+    if (needles.some((needle) => value.includes(needle))) return platform;
+  }
+  return 'other';
 }
