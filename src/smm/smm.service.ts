@@ -5,7 +5,13 @@ import { PrismaService } from '../database/prisma.service';
 import { resolveSecretRef } from '../execution/secrets';
 import { SmmPanelV2Adapter } from '../execution/smm/smm-panel-v2.adapter';
 import { XPaymentsService } from '../integrations/xpayments.service';
-import { ConfigureSmmProviderDto, CreateSmmOrderDto, ListSmmQuery } from './smm.dto';
+import {
+  ConfigureSmmProviderDto,
+  CreateSmmOrderDto,
+  ListSmmQuery,
+  ListSmmServicesQuery,
+  UpsertSmmOfferDto,
+} from './smm.dto';
 
 @Injectable()
 export class SmmService {
@@ -196,6 +202,134 @@ export class SmmService {
       provider.baseUrl,
       resolveSecretRef(this.config, provider.secretRef),
     );
+  }
+
+  listServices(query: ListSmmServicesQuery) {
+    const q = query.q?.trim();
+    return this.prisma.smmService.findMany({
+      where: {
+        active: true,
+        ...(query.providerCode
+          ? { provider: { code: query.providerCode.trim().toLowerCase() } }
+          : {}),
+        ...(query.platform ? { platform: query.platform.trim().toLowerCase() } : {}),
+        ...(query.category
+          ? { category: { contains: query.category.trim(), mode: 'insensitive' } }
+          : {}),
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q, mode: 'insensitive' } },
+                { category: { contains: q, mode: 'insensitive' } },
+                { providerServiceId: { contains: q } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        providerServiceId: true,
+        platform: true,
+        category: true,
+        serviceType: true,
+        name: true,
+        description: true,
+        minQuantity: true,
+        maxQuantity: true,
+        costAmount: true,
+        costCurrency: true,
+        costUnitSize: true,
+        refillSupported: true,
+        cancelSupported: true,
+        active: true,
+        metadata: true,
+        provider: {
+          select: {
+            code: true,
+            name: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: [{ platform: 'asc' }, { category: 'asc' }, { name: 'asc' }],
+      take: query.limit ?? 100,
+    });
+  }
+
+  async upsertOffer(tenant: Tenant, body: UpsertSmmOfferDto) {
+    const service = await this.prisma.smmService.findFirst({
+      where: { id: body.serviceId, active: true, provider: { status: 'active' } },
+      select: {
+        id: true,
+        providerId: true,
+        costAmount: true,
+        costCurrency: true,
+        costUnitSize: true,
+      },
+    });
+    if (!service) {
+      throw new NotFoundException('Serviço SMM não encontrado ou provider inativo.');
+    }
+
+    return this.prisma.smmOffer.upsert({
+      where: {
+        tenantId_serviceId: {
+          tenantId: tenant.id,
+          serviceId: service.id,
+        },
+      },
+      update: {
+        publicName: body.publicName.trim(),
+        description: body.description?.trim(),
+        salePrice: new Prisma.Decimal(body.salePrice),
+        currency: (body.currency ?? 'BRL').trim().toUpperCase(),
+        pricingModel: body.pricingModel ?? 'per_unit_size',
+        unitSize: body.unitSize ?? service.costUnitSize ?? 1000,
+        active: body.active ?? true,
+        sortOrder: body.sortOrder ?? 100,
+        metadata: ({
+          ...(body.metadata ?? {}),
+          providerCostSnapshot: service.costAmount?.toString() ?? null,
+          providerCostCurrency: service.costCurrency,
+          providerCostUnitSize: service.costUnitSize,
+          publishedAt: new Date().toISOString(),
+        }) as Prisma.InputJsonValue,
+      },
+      create: {
+        tenantId: tenant.id,
+        serviceId: service.id,
+        publicName: body.publicName.trim(),
+        description: body.description?.trim(),
+        salePrice: new Prisma.Decimal(body.salePrice),
+        currency: (body.currency ?? 'BRL').trim().toUpperCase(),
+        pricingModel: body.pricingModel ?? 'per_unit_size',
+        unitSize: body.unitSize ?? service.costUnitSize ?? 1000,
+        active: body.active ?? true,
+        sortOrder: body.sortOrder ?? 100,
+        metadata: ({
+          ...(body.metadata ?? {}),
+          providerCostSnapshot: service.costAmount?.toString() ?? null,
+          providerCostCurrency: service.costCurrency,
+          providerCostUnitSize: service.costUnitSize,
+          publishedAt: new Date().toISOString(),
+        }) as Prisma.InputJsonValue,
+      },
+      include: {
+        service: {
+          select: {
+            id: true,
+            platform: true,
+            category: true,
+            serviceType: true,
+            name: true,
+            minQuantity: true,
+            maxQuantity: true,
+            refillSupported: true,
+            cancelSupported: true,
+          },
+        },
+      },
+    });
   }
 
   listOffers(tenant: Tenant) {
