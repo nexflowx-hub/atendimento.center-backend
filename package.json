@@ -2,7 +2,7 @@
   "name": "atendimento-center-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "Backend/BFF multi-tenant do Atendimento.Center",
+  "description": "Atlas Platform backend/control plane (Atendimento.Center, Growth/SMM, Signals)",
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
@@ -11,7 +11,9 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "start:worker": "node dist/worker.js",
+    "start:worker:dev": "ts-node -r tsconfig-paths/register src/worker.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
