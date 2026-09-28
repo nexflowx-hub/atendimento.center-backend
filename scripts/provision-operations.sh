@@ -43,6 +43,14 @@ operations = [
         "evolutionInstance": env("MYPETS_EVOLUTION_INSTANCE"),
     },
     {
+        "name": "MyTrainX",
+        "slug": "mytrainx",
+        "websiteUrl": env("MYTRAINX_WEBSITE_URL", "https://mytrainx.com"),
+        "welcomeTitle": "MyTrainX",
+        "welcomeTagline": "Olá! Como podemos ajudar?",
+        "evolutionInstance": env("MYTRAINX_EVOLUTION_INSTANCE"),
+    },
+    {
         "name": "FaceLove",
         "slug": "facelove",
         "websiteUrl": env("FACELOVE_WEBSITE_URL", "https://facelove.online"),
