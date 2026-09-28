@@ -425,6 +425,7 @@ model SmmService {
   maxQuantity           Int?          @map("max_quantity")
   costAmount            Decimal?      @map("cost_amount") @db.Decimal(18, 6)
   costCurrency          String        @default("USD") @map("cost_currency")
+  costUnitSize          Int           @default(1000) @map("cost_unit_size")
   refillSupported       Boolean       @default(false) @map("refill_supported")
   cancelSupported       Boolean       @default(false) @map("cancel_supported")
   active                Boolean       @default(true)
@@ -447,8 +448,10 @@ model SmmOffer {
   serviceId   String     @map("service_id") @db.Uuid
   publicName  String     @map("public_name")
   description String?    @db.Text
-  salePrice   Decimal    @map("sale_price") @db.Decimal(18, 6)
-  currency    String     @default("BRL")
+  salePrice    Decimal    @map("sale_price") @db.Decimal(18, 6)
+  currency     String     @default("BRL")
+  pricingModel String     @default("per_unit_size") @map("pricing_model")
+  unitSize     Int        @default(1000) @map("unit_size")
   active      Boolean    @default(true)
   sortOrder   Int        @default(100) @map("sort_order")
   metadata    Json       @default("{}")
