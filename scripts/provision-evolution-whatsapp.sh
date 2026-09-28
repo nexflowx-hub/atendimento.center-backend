@@ -10,6 +10,27 @@ SECRETS_DIR="$(dirname "$SECRETS_FILE")"
 NETWORK="${ATC_EDGE_NETWORK:-platform_edge}"
 
 case "$OPERATION" in
+  atlashub)
+    DISPLAY_NAME="AtlasHub"
+    INSTANCE_NAME="atlashub-wa"
+    INBOX_NAME="AtlasHub • WhatsApp"
+    ;;
+  novidades-store|novidades)
+    DISPLAY_NAME="Novidades.Store"
+    OPERATION="novidades-store"
+    INSTANCE_NAME="novidades-wa"
+    INBOX_NAME="Novidades.Store • WhatsApp"
+    ;;
+  mypets)
+    DISPLAY_NAME="MyPets"
+    INSTANCE_NAME="mypets-wa"
+    INBOX_NAME="MyPets • WhatsApp"
+    ;;
+  mytrainx)
+    DISPLAY_NAME="MyTrainX"
+    INSTANCE_NAME="mytrainx-wa"
+    INBOX_NAME="MyTrainX • WhatsApp"
+    ;;
   facelove)
     DISPLAY_NAME="FaceLove"
     INSTANCE_NAME="facelove-wa"
@@ -21,7 +42,7 @@ case "$OPERATION" in
     INBOX_NAME="TreinoMilitar • WhatsApp"
     ;;
   *)
-    echo "Uso: $0 {facelove|treinomilitar}" >&2
+    echo "Uso: $0 {atlashub|novidades-store|mypets|mytrainx|facelove|treinomilitar}" >&2
     exit 1
     ;;
 esac
