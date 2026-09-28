@@ -9,7 +9,6 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Request } from 'express';
 import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
@@ -36,7 +35,7 @@ export class WebhooksController {
   @Post('xpayments')
   @HttpCode(200)
   async xpaymentsWebhook(
-    @Req() req: RawBodyRequest<Request>,
+    @Req() req: RawBodyRequest<object>,
     @Headers('x-nexflowx-signature') signature: string | undefined,
     @Body() body: XPaymentsWebhookPayload,
   ) {
@@ -91,7 +90,7 @@ export class WebhooksController {
       ? await this.prisma.webhookEvent.update({
           where: { id: existing.id },
           data: {
-            payload: body as Prisma.InputJsonValue,
+            payload: body as unknown as Prisma.InputJsonValue,
             status: order ? 'processing' : 'ignored',
           },
         })
@@ -102,7 +101,7 @@ export class WebhooksController {
             eventType: event,
             externalEventId,
             status: order ? 'processing' : 'ignored',
-            payload: body as Prisma.InputJsonValue,
+            payload: body as unknown as Prisma.InputJsonValue,
           },
         });
 
@@ -129,7 +128,7 @@ export class WebhooksController {
           orderId: order.id,
           eventType: `payment.${status}`,
           status: orderStatus,
-          payload: body as Prisma.InputJsonValue,
+          payload: body as unknown as Prisma.InputJsonValue,
         },
       }),
       this.prisma.webhookEvent.update({
