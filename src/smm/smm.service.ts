@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Tenant } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { XPaymentsService } from '../integrations/xpayments.service';
 import { CreateSmmOrderDto, ListSmmQuery } from './smm.dto';
 
 @Injectable()
 export class SmmService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly xpayments: XPaymentsService,
+  ) {}
 
   listOffers(tenant: Tenant) {
     return this.prisma.smmOffer.findMany({
@@ -55,6 +59,65 @@ export class SmmService {
       orderBy: { createdAt: 'desc' },
       take: query.limit ?? 50,
     });
+  }
+
+  async createCheckout(tenant: Tenant, orderId: string) {
+    const order = await this.prisma.smmOrder.findFirst({
+      where: { id: orderId, tenantId: tenant.id },
+      include: { contact: true },
+    });
+
+    if (!order) throw new NotFoundException('Pedido SMM não encontrado.');
+
+    if (['paid', 'submitting', 'processing', 'completed'].includes(order.status)) {
+      throw new NotFoundException('Este pedido já não aceita novo checkout.');
+    }
+
+    const reference = order.paymentReference ?? `ATLASSMM-${order.id}`;
+    const amountCents = Math.max(1, Math.round(Number(order.amount) * 100));
+
+    const checkout = await this.xpayments.createCheckout({
+      amountCents,
+      currency: order.currency,
+      reference,
+      customerEmail: order.contact?.email,
+      metadata: {
+        atlasOrderId: order.id,
+        atlasTenantId: tenant.id,
+        product: 'smm',
+      },
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.smmOrder.update({
+        where: { id: order.id },
+        data: {
+          paymentSystem: 'xpayments',
+          paymentReference: reference,
+          status: 'payment_pending',
+          metadata: {
+            ...((order.metadata ?? {}) as object),
+            checkoutSessionId: checkout.sessionId,
+            checkoutUrl: checkout.checkoutUrl,
+          },
+        },
+      }),
+      this.prisma.smmOrderEvent.create({
+        data: {
+          orderId: order.id,
+          eventType: 'payment.checkout.created',
+          status: 'payment_pending',
+          payload: {
+            paymentSystem: 'xpayments',
+            paymentReference: reference,
+            sessionId: checkout.sessionId,
+            checkoutUrl: checkout.checkoutUrl,
+          },
+        },
+      }),
+    ]);
+
+    return checkout;
   }
 
   async createOrder(tenant: Tenant, body: CreateSmmOrderDto) {
