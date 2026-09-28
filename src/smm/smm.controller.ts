@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import type { Tenant } from '@prisma/client';
 import { CurrentTenant } from '../auth/auth.decorators';
 import { SupabaseAuthGuard, TenantGuard } from '../auth/auth.guards';
@@ -18,6 +18,11 @@ export class SmmController {
   @Get('orders')
   listOrders(@CurrentTenant() tenant: Tenant, @Query() query: ListSmmQuery) {
     return this.smm.listOrders(tenant, query);
+  }
+
+  @Post('orders/:id/checkout')
+  createCheckout(@CurrentTenant() tenant: Tenant, @Param('id') id: string) {
+    return this.smm.createCheckout(tenant, id);
   }
 
   @Post('orders')
