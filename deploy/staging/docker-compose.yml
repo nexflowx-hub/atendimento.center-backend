@@ -1,0 +1,44 @@
+name: atlas-v2-staging
+services:
+  backend:
+    image: ${ATLAS_STAGING_IMAGE:?Set a reviewed immutable staging image tag}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment: &atlas_environment
+      NODE_ENV: staging
+      PORT: "8080"
+      DATABASE_URL: ${ATLAS_STAGING_DATABASE_URL:?Use a separate staging database}
+      SUPABASE_URL: ${ATLAS_STAGING_SUPABASE_URL:?Use staging Auth}
+      SUPABASE_ANON_KEY: ${ATLAS_STAGING_SUPABASE_ANON_KEY:?Use staging Auth}
+      OPENROUTER_API_KEY: ${ATLAS_STAGING_OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${ATLAS_STAGING_OPENROUTER_MODEL:-openai/gpt-4.1-mini}
+      ATLAS_REDIS_URL: redis://redis:6379/2
+      CORS_ORIGINS: http://127.0.0.1:18080
+    ports:
+      - "127.0.0.1:18080:8080"
+    networks: [staging]
+  atlas_agent_worker:
+    image: ${ATLAS_STAGING_IMAGE:?Set a reviewed immutable staging image tag}
+    command: ["node", "dist/agent-worker.js"]
+    environment:
+      <<: *atlas_environment
+      ATLAS_AGENT_WORKER_CONCURRENCY: "1"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [staging]
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [staging_redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [staging]
+networks:
+  staging:
+volumes:
+  staging_redis:

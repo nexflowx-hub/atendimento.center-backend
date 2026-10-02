@@ -181,6 +181,7 @@ services:
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4.1-mini}
+      ATLAS_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
       XPAYMENTS_BASE_URL: ${XPAYMENTS_BASE_URL:-https://api.xpayments.digital/api/v1}
       XPAYMENTS_API_KEY: ${XPAYMENTS_API_KEY:-}
       XPAYMENTS_WEBHOOK_SECRET: ${XPAYMENTS_WEBHOOK_SECRET:-}
@@ -192,6 +193,26 @@ services:
       evolution:
         condition: service_started
 
+
+
+  atlas_agent_worker:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "dist/agent-worker.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${SUPABASE_DATABASE_URL}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4.1-mini}
+      ATLAS_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
+      ATLAS_AGENT_WORKER_CONCURRENCY: ${ATLAS_AGENT_WORKER_CONCURRENCY:-1}
+    networks:
+      - atendimento_internal
+    depends_on:
+      redis:
+        condition: service_healthy
 
   atlas_worker:
     build:
