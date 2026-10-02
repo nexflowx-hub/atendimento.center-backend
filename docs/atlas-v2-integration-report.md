@@ -1,5 +1,7 @@
 Atlas Group OS V2 integration report — 2026-10-02
 
+Canonical current-state architecture: [docs/architecture/README.md](architecture/README.md).
+
 The existing integration was repaired in place against upstream commit `f47dc6a31db118e0047decd1ea50e6a97a30df48`. The upstream baseline history was preserved; the candidate is consolidated on local branch `feat/atlas-group-os-v2-integration`. No production container, service, database, deployment or secret was accessed or modified. No migration was executed. Integration and staging support are committed locally; no merge, push or activation is part of this consolidation.
 
 1. Original failures and root causes

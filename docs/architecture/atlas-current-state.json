@@ -1,0 +1,370 @@
+{
+  "as_of": "2026-10-02",
+  "branch": "feat/atlas-group-os-v2-integration",
+  "source_commit": "a32a17be4fb4dedd61a4623147680c7d310be05c",
+  "scope": "Versioned implementation and configuration; documentation only",
+  "live_status": "UNKNOWN/REVERIFY",
+  "historical_observation_label": "LIVE-OBSERVED AS OF 2026-09-30",
+  "historical_observations": [],
+  "evidence_vocabulary_limitation": "Previous mission complete vocabulary was unavailable; only explicitly supplied labels are used.",
+  "evidence": [
+    "deploy/production/docker-compose.yml",
+    "deploy/production/Caddyfile",
+    "deploy/staging/docker-compose.yml",
+    "deploy/staging/README.md",
+    "deploy/staging/ATLAS-DEV-ACCEPTANCE.md",
+    "docs/atlas-v2-integration-report.md",
+    "prisma/schema.prisma",
+    "database/atlas-v2-migration-order.json",
+    "src",
+    "tests"
+  ],
+  "production": {
+    "compose_project": "atendimento-center",
+    "network": "atendimento_internal",
+    "services": [
+      "caddy",
+      "postgres",
+      "redis",
+      "chatwoot",
+      "chatwoot_worker",
+      "evolution",
+      "backend",
+      "atlas_agent_worker",
+      "atlas_worker",
+      "atlas_signals_worker",
+      "frontend"
+    ],
+    "published_ports": [
+      "80/tcp",
+      "443/tcp",
+      "443/udp"
+    ],
+    "atlas_database_configuration": "SUPABASE_DATABASE_URL",
+    "atlas_database_live_host": "UNKNOWN/REVERIFY",
+    "redis_databases": {
+      "chatwoot": 0,
+      "evolution": 1,
+      "atlas": 2
+    }
+  },
+  "staging": {
+    "compose_project": "atlas-v2-staging",
+    "services": [
+      "backend",
+      "atlas_agent_worker",
+      "redis"
+    ],
+    "api_binding": "127.0.0.1:18080:8080",
+    "database_and_auth": "Separately provisioned staging endpoints",
+    "worker_concurrency": 1,
+    "live_activation": "UNKNOWN/REVERIFY"
+  },
+  "execution": {
+    "implemented_queue": "atlas.agent",
+    "payload_fields": [
+      "executionJobId"
+    ],
+    "attempts": 1,
+    "api_queue_initialization": "lazy",
+    "other_declared_queues_have_active_consumers": "UNKNOWN/REVERIFY",
+    "polling_workers": {
+      "atlas_worker": "smm",
+      "atlas_signals_worker": "signals"
+    },
+    "exactly_once_guaranteed": false
+  },
+  "models": [
+    {
+      "model": "Organization",
+      "table": "core.organizations"
+    },
+    {
+      "model": "Tenant",
+      "table": "core.tenants"
+    },
+    {
+      "model": "TenantUser",
+      "table": "core.memberships"
+    },
+    {
+      "model": "Entitlement",
+      "table": "core.entitlements"
+    },
+    {
+      "model": "Contact",
+      "table": "crm.contacts"
+    },
+    {
+      "model": "Lead",
+      "table": "crm.leads"
+    },
+    {
+      "model": "CrmActivity",
+      "table": "crm.activities"
+    },
+    {
+      "model": "AppointmentRequest",
+      "table": "crm.appointment_requests"
+    },
+    {
+      "model": "ChannelAccount",
+      "table": "channels.accounts"
+    },
+    {
+      "model": "ConversationRef",
+      "table": "channels.conversation_refs"
+    },
+    {
+      "model": "AiConfiguration",
+      "table": "ai.tenant_configurations"
+    },
+    {
+      "model": "Agent",
+      "table": "ai.agents"
+    },
+    {
+      "model": "AgentVersion",
+      "table": "ai.agent_versions"
+    },
+    {
+      "model": "AgentBinding",
+      "table": "ai.agent_bindings"
+    },
+    {
+      "model": "ContactIdentity",
+      "table": "channels.contact_identities"
+    },
+    {
+      "model": "RelationshipState",
+      "table": "ai.relationship_states"
+    },
+    {
+      "model": "ConversationMemory",
+      "table": "ai.conversation_memories"
+    },
+    {
+      "model": "ConversationSummary",
+      "table": "ai.conversation_summaries"
+    },
+    {
+      "model": "OpenLoop",
+      "table": "ai.open_loops"
+    },
+    {
+      "model": "AgentWorldState",
+      "table": "ai.world_states"
+    },
+    {
+      "model": "AgentRun",
+      "table": "ai.agent_runs"
+    },
+    {
+      "model": "AgentFollowup",
+      "table": "ai.followups"
+    },
+    {
+      "model": "FlowDefinition",
+      "table": "flows.definitions"
+    },
+    {
+      "model": "FlowRun",
+      "table": "flows.runs"
+    },
+    {
+      "model": "AutomationWorkflow",
+      "table": "automation.workflows"
+    },
+    {
+      "model": "AutomationRun",
+      "table": "automation.runs"
+    },
+    {
+      "model": "SmmProvider",
+      "table": "smm.providers"
+    },
+    {
+      "model": "SmmService",
+      "table": "smm.services"
+    },
+    {
+      "model": "SmmOffer",
+      "table": "smm.offers"
+    },
+    {
+      "model": "SmmOrder",
+      "table": "smm.orders"
+    },
+    {
+      "model": "SmmOrderEvent",
+      "table": "smm.order_events"
+    },
+    {
+      "model": "SignalConnector",
+      "table": "signals.connectors"
+    },
+    {
+      "model": "SignalSource",
+      "table": "signals.sources"
+    },
+    {
+      "model": "SignalJob",
+      "table": "signals.jobs"
+    },
+    {
+      "model": "SignalItem",
+      "table": "signals.items"
+    },
+    {
+      "model": "IntegrationConnection",
+      "table": "integrations.connections"
+    },
+    {
+      "model": "WebhookEvent",
+      "table": "integrations.webhook_events"
+    },
+    {
+      "model": "AuditLog",
+      "table": "audit.logs"
+    },
+    {
+      "model": "RuntimeRun",
+      "table": "ai.runtime_runs"
+    },
+    {
+      "model": "RuntimeStep",
+      "table": "ai.runtime_steps"
+    },
+    {
+      "model": "RuntimeEvent",
+      "table": "audit.runtime_events"
+    },
+    {
+      "model": "ToolDefinitionRecord",
+      "table": "ai.tool_definitions"
+    },
+    {
+      "model": "ToolGrant",
+      "table": "ai.tool_grants"
+    },
+    {
+      "model": "RuntimeAction",
+      "table": "ai.runtime_actions"
+    },
+    {
+      "model": "ExecutionJob",
+      "table": "ai.execution_jobs"
+    },
+    {
+      "model": "BusinessUnit",
+      "table": "core.business_units"
+    },
+    {
+      "model": "Branch",
+      "table": "core.branches"
+    },
+    {
+      "model": "Team",
+      "table": "core.teams"
+    },
+    {
+      "model": "TeamMembership",
+      "table": "core.team_memberships"
+    },
+    {
+      "model": "PortfolioProject",
+      "table": "portfolio.projects"
+    },
+    {
+      "model": "PortfolioGoal",
+      "table": "portfolio.goals"
+    },
+    {
+      "model": "PortfolioTask",
+      "table": "portfolio.tasks"
+    },
+    {
+      "model": "GovernanceDecision",
+      "table": "governance.decisions"
+    },
+    {
+      "model": "GovernancePolicy",
+      "table": "governance.policies"
+    },
+    {
+      "model": "ApprovalRequest",
+      "table": "governance.approval_requests"
+    },
+    {
+      "model": "ApprovalDecision",
+      "table": "governance.approval_decisions"
+    },
+    {
+      "model": "CostCenter",
+      "table": "finops.cost_centers"
+    },
+    {
+      "model": "Budget",
+      "table": "finops.budgets"
+    },
+    {
+      "model": "UsageRecord",
+      "table": "finops.usage_records"
+    },
+    {
+      "model": "KnowledgeSource",
+      "table": "knowledge.sources"
+    },
+    {
+      "model": "KnowledgeDocument",
+      "table": "knowledge.documents"
+    },
+    {
+      "model": "KnowledgeChunk",
+      "table": "knowledge.chunks"
+    },
+    {
+      "model": "ProjectMemory",
+      "table": "portfolio.project_memories"
+    },
+    {
+      "model": "AgentPack",
+      "table": "ai.agent_packs"
+    },
+    {
+      "model": "AgentPackVersion",
+      "table": "ai.agent_pack_versions"
+    },
+    {
+      "model": "AgentPackTool",
+      "table": "ai.agent_pack_tools"
+    },
+    {
+      "model": "AgentPackAssignment",
+      "table": "ai.agent_pack_assignments"
+    },
+    {
+      "model": "AgentPackKnowledgeBinding",
+      "table": "knowledge.agent_pack_bindings"
+    }
+  ],
+  "migration_order": [
+    "20261001_atlas_runtime_v2_slice1.sql",
+    "20261001_atlas_group_os_foundation_v1.sql",
+    "20261001_atlas_runtime_v2_slice2_tools_policy.sql",
+    "20261001_atlas_runtime_v2_slice4_model_tools.sql",
+    "20261001_atlas_runtime_v2_slice5_execution_jobs.sql",
+    "20261001_atlas_runtime_v2_slice6_knowledge.sql",
+    "20261001_atlas_agent_packs_v1.sql"
+  ],
+  "limitations": [
+    "No live deployment verification",
+    "No historical external observations available",
+    "Pack instructions and knowledge bindings not fully consumed by Runtime",
+    "Nonempty tool constraints fail closed",
+    "GovernancePolicy JSON is not an executable policy DSL",
+    "Crash recovery may require reconciliation",
+    "Tool timeouts do not cancel running side effects",
+    "UsageRecords do not automatically cover every Runtime model call"
+  ]
+}
