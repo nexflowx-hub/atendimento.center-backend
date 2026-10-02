@@ -5,15 +5,18 @@
   "description": "Atlas Platform backend/control plane (Atendimento.Center, Growth/SMM, Signals)",
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "node node_modules/@nestjs/cli/bin/nest.js build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "node node_modules/prisma/build/index.js generate",
     "prisma:push": "prisma db push",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/prisma-postinstall.cjs",
+    "test": "npm run build && node --test tests/*.test.cjs",
     "start:worker": "node dist/worker.js",
-    "start:worker:dev": "ts-node -r tsconfig-paths/register src/worker.ts"
+    "start:worker:dev": "ts-node -r tsconfig-paths/register src/worker.ts",
+    "start:agent-worker": "node dist/agent-worker.js",
+    "start:agent-worker:dev": "ts-node -r tsconfig-paths/register src/agent-worker.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -23,16 +26,20 @@
     "@nestjs/platform-express": "^11.1.28",
     "@prisma/client": "6.19.2",
     "axios": "^1.12.2",
+    "bullmq": "^6.3.11",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "helmet": "^8.1.0",
+    "ioredis": "^6.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^11.0.7",
+    "@nestjs/testing": "^11.1.28",
     "@types/node": "^24.0.15",
+    "pgsql-parser": "^18.2.8",
     "prisma": "6.19.2",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",

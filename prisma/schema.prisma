@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["core", "crm", "channels", "ai", "flows", "automation", "smm", "signals", "integrations", "audit"]
+  schemas  = ["core", "crm", "channels", "ai", "flows", "automation", "smm", "signals", "integrations", "audit", "portfolio", "governance", "finops", "knowledge"]
 }
 
 model Organization {
@@ -877,3 +877,639 @@ model AuditLog {
   @@map("logs")
   @@schema("audit")
 }
+
+// BEGIN ATLAS RUNTIME V2 SLICE 1
+// Append these models to prisma/schema.prisma.
+// Existing datasource schemas already include "ai" and "audit".
+
+model RuntimeRun {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  agentId        String    @map("agent_id") @db.Uuid
+  agentVersionId String?   @map("agent_version_id") @db.Uuid
+  actorType      String    @default("user") @map("actor_type")
+  actorId        String?   @map("actor_id")
+  triggerType    String    @default("api") @map("trigger_type")
+  triggerRef     String?   @map("trigger_ref")
+  status         String    @default("running")
+  provider       String?
+  model          String?
+  input          Json      @default("{}")
+  state          Json      @default("{}")
+  output         Json?
+  inputTokens    Int?      @map("input_tokens")
+  outputTokens   Int?      @map("output_tokens")
+  costUsd        Decimal?  @map("cost_usd") @db.Decimal(18, 8)
+  latencyMs      Int?      @map("latency_ms")
+  traceId        String    @default(uuid()) @map("trace_id") @db.Uuid
+  errorMessage   String?   @map("error_message") @db.Text
+  metadata       Json      @default("{}")
+  startedAt      DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([agentId, createdAt(sort: Desc)])
+  @@index([status, startedAt])
+  @@index([traceId])
+  @@map("runtime_runs")
+  @@schema("ai")
+}
+
+model RuntimeStep {
+  id                String    @id @default(uuid()) @db.Uuid
+  runId             String    @map("run_id") @db.Uuid
+  ordinal           Int
+  kind              String
+  status            String    @default("running")
+  provider          String?
+  model             String?
+  toolCode          String?   @map("tool_code")
+  inputSummary      Json      @default("{}") @map("input_summary")
+  outputSummary     Json?     @map("output_summary")
+  inputTokens       Int?      @map("input_tokens")
+  outputTokens      Int?      @map("output_tokens")
+  costUsd           Decimal?  @map("cost_usd") @db.Decimal(18, 8)
+  latencyMs         Int?      @map("latency_ms")
+  approvalRequestId String?   @map("approval_request_id") @db.Uuid
+  errorMessage      String?   @map("error_message") @db.Text
+  startedAt         DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([runId, ordinal])
+  @@index([runId, ordinal])
+  @@map("runtime_steps")
+  @@schema("ai")
+}
+
+model RuntimeEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  runId     String   @map("run_id") @db.Uuid
+  traceId   String   @map("trace_id") @db.Uuid
+  eventType String   @map("event_type")
+  actorType String?  @map("actor_type")
+  actorId   String?  @map("actor_id")
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([traceId, createdAt])
+  @@index([runId, createdAt])
+  @@map("runtime_events")
+  @@schema("audit")
+}
+// END ATLAS RUNTIME V2 SLICE 1
+
+// BEGIN ATLAS RUNTIME V2 SLICE 2
+// Append after Runtime V2 Slice 1 models.
+
+model ToolDefinitionRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String
+  version      String   @default("1")
+  description  String
+  capability   String
+  inputSchema  Json     @default("{}") @map("input_schema")
+  outputSchema Json?    @map("output_schema")
+  sideEffect   String   @default("none") @map("side_effect")
+  defaultRisk  String   @default("low") @map("default_risk")
+  enabled      Boolean  @default(true)
+  timeoutMs    Int      @default(15000) @map("timeout_ms")
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([code, version])
+  @@index([enabled, code])
+  @@map("tool_definitions")
+  @@schema("ai")
+}
+
+model ToolGrant {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  agentId     String   @map("agent_id") @db.Uuid
+  toolCode    String   @map("tool_code")
+  status      String   @default("active")
+  constraints Json     @default("{}")
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, agentId, toolCode])
+  @@index([tenantId, agentId, status])
+  @@map("tool_grants")
+  @@schema("ai")
+}
+
+model RuntimeAction {
+  id                String    @id @default(uuid()) @db.Uuid
+  runId             String    @map("run_id") @db.Uuid
+  stepId            String?   @map("step_id") @db.Uuid
+  toolCode          String    @map("tool_code")
+  toolVersion       String?   @map("tool_version")
+  capability        String
+  input             Json      @default("{}")
+  sideEffect        String    @map("side_effect")
+  risk              String
+  policyResult      String?   @map("policy_result")
+  policyReason      String?   @map("policy_reason") @db.Text
+  status            String    @default("proposed")
+  approvalRequestId String?   @map("approval_request_id") @db.Uuid
+  idempotencyKey    String?   @map("idempotency_key")
+  output            Json?
+  errorMessage      String?   @map("error_message") @db.Text
+  proposedAt        DateTime  @default(now()) @map("proposed_at") @db.Timestamptz(6)
+  startedAt         DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([runId, proposedAt])
+  @@index([status, proposedAt])
+  @@map("runtime_actions")
+  @@schema("ai")
+}
+// END ATLAS RUNTIME V2 SLICE 2
+
+// BEGIN ATLAS RUNTIME V2 SLICE 5
+model ExecutionJob {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  queueName    String    @map("queue_name")
+  jobType      String    @map("job_type")
+  actorType    String    @map("actor_type")
+  actorId      String?   @map("actor_id")
+  status       String    @default("queued")
+  request      Json      @default("{}")
+  runId        String?   @map("run_id") @db.Uuid
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(1) @map("max_attempts")
+  errorMessage String?   @map("error_message") @db.Text
+  scheduledAt  DateTime  @default(now()) @map("scheduled_at") @db.Timestamptz(6)
+  startedAt    DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime? @map("finished_at") @db.Timestamptz(6)
+  metadata     Json      @default("{}")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([queueName, status, scheduledAt])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([runId])
+  @@map("execution_jobs")
+  @@schema("ai")
+}
+// END ATLAS RUNTIME V2 SLICE 5
+
+// BEGIN ATLAS GROUP OS FOUNDATION V1
+// Append these models to prisma/schema.prisma after adding
+// "portfolio", "governance" and "finops" to datasource.schemas.
+
+model BusinessUnit {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  status         String   @default("active")
+  mandate        String?  @db.Text
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@map("business_units")
+  @@schema("core")
+}
+
+model Branch {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  businessUnitId String   @map("business_unit_id") @db.Uuid
+  code           String
+  name           String
+  kind           String   @default("venture")
+  status         String   @default("active")
+  mandate        String?  @db.Text
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, code])
+  @@index([businessUnitId, status])
+  @@map("branches")
+  @@schema("core")
+}
+
+model Team {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  businessUnitId String?  @map("business_unit_id") @db.Uuid
+  branchId       String?  @map("branch_id") @db.Uuid
+  code           String
+  name           String
+  status         String   @default("active")
+  mandate        String?  @db.Text
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, code])
+  @@index([branchId, status])
+  @@map("teams")
+  @@schema("core")
+}
+
+model TeamMembership {
+  id         String   @id @default(uuid()) @db.Uuid
+  teamId     String   @map("team_id") @db.Uuid
+  memberType String   @map("member_type")
+  agentId    String?  @map("agent_id") @db.Uuid
+  authUserId String?  @map("auth_user_id") @db.Uuid
+  role       String   @default("member")
+  isManager  Boolean  @default(false) @map("is_manager")
+  active     Boolean  @default(true)
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([teamId, active])
+  @@map("team_memberships")
+  @@schema("core")
+}
+
+model PortfolioProject {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  businessUnitId  String?   @map("business_unit_id") @db.Uuid
+  branchId        String?   @map("branch_id") @db.Uuid
+  code            String
+  name            String
+  status          String    @default("planned")
+  ownerType       String?   @map("owner_type")
+  ownerId         String?   @map("owner_id")
+  objective       String?   @db.Text
+  successCriteria Json      @default("[]") @map("success_criteria")
+  riskLevel       String    @default("medium") @map("risk_level")
+  startedAt       DateTime? @map("started_at") @db.Timestamptz(6)
+  targetAt        DateTime? @map("target_at") @db.Timestamptz(6)
+  metadata        Json      @default("{}")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status, updatedAt(sort: Desc)])
+  @@map("projects")
+  @@schema("portfolio")
+}
+
+model PortfolioGoal {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  projectId       String?   @map("project_id") @db.Uuid
+  branchId        String?   @map("branch_id") @db.Uuid
+  parentGoalId    String?   @map("parent_goal_id") @db.Uuid
+  title           String
+  status          String    @default("planned")
+  priority        Int       @default(100)
+  successCriteria Json      @default("[]") @map("success_criteria")
+  ownerType       String?   @map("owner_type")
+  ownerId         String?   @map("owner_id")
+  targetAt        DateTime? @map("target_at") @db.Timestamptz(6)
+  metadata        Json      @default("{}")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([projectId, status, priority])
+  @@map("goals")
+  @@schema("portfolio")
+}
+
+model PortfolioTask {
+  id               String    @id @default(uuid()) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  projectId        String?   @map("project_id") @db.Uuid
+  goalId           String?   @map("goal_id") @db.Uuid
+  parentTaskId     String?   @map("parent_task_id") @db.Uuid
+  title            String
+  description      String?   @db.Text
+  status           String    @default("backlog")
+  priority         Int       @default(100)
+  assigneeType     String?   @map("assignee_type")
+  assigneeId       String?   @map("assignee_id")
+  riskLevel        String    @default("low") @map("risk_level")
+  approvalRequired Boolean   @default(false) @map("approval_required")
+  dueAt            DateTime? @map("due_at") @db.Timestamptz(6)
+  metadata         Json      @default("{}")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([projectId, status, priority])
+  @@map("tasks")
+  @@schema("portfolio")
+}
+
+model GovernanceDecision {
+  id               String    @id @default(uuid()) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  projectId        String?   @map("project_id") @db.Uuid
+  taskId           String?   @map("task_id") @db.Uuid
+  title            String
+  proposal         String?   @db.Text
+  alternatives     Json      @default("[]")
+  risks            Json      @default("[]")
+  decision         String?   @db.Text
+  status           String    @default("proposed")
+  proposedByType   String?   @map("proposed_by_type")
+  proposedById     String?   @map("proposed_by_id")
+  decidedByType    String?   @map("decided_by_type")
+  decidedById      String?   @map("decided_by_id")
+  decidedAt        DateTime? @map("decided_at") @db.Timestamptz(6)
+  metadata         Json      @default("{}")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@map("decisions")
+  @@schema("governance")
+}
+
+model GovernancePolicy {
+  id                String   @id @default(uuid()) @db.Uuid
+  organizationId    String?  @map("organization_id") @db.Uuid
+  code              String
+  name              String
+  version           Int      @default(1)
+  status            String   @default("draft")
+  scope             String   @default("organization")
+  rule              Json     @default("{}")
+  immutableByAgents Boolean  @default(true) @map("immutable_by_agents")
+  metadata          Json     @default("{}")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([organizationId, code, version])
+  @@map("policies")
+  @@schema("governance")
+}
+
+model ApprovalRequest {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  tenantId        String?   @map("tenant_id") @db.Uuid
+  runId           String?   @map("run_id") @db.Uuid
+  actionId        String?   @map("action_id") @db.Uuid
+  status          String    @default("pending")
+  riskLevel       String    @default("medium") @map("risk_level")
+  requestedByType String    @map("requested_by_type")
+  requestedById   String?   @map("requested_by_id")
+  approverClass   String    @map("approver_class")
+  reason          String?   @db.Text
+  expectedEffect  String?   @map("expected_effect") @db.Text
+  reversibility   String?
+  policyIds       Json      @default("[]") @map("policy_ids")
+  payload         Json      @default("{}")
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz(6)
+  decidedAt       DateTime? @map("decided_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, riskLevel, createdAt])
+  @@map("approval_requests")
+  @@schema("governance")
+}
+
+model ApprovalDecision {
+  id                String   @id @default(uuid()) @db.Uuid
+  approvalRequestId String   @unique @map("approval_request_id") @db.Uuid
+  decision          String
+  actorType         String   @map("actor_type")
+  actorId           String?  @map("actor_id")
+  reason            String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("approval_decisions")
+  @@schema("governance")
+}
+
+model CostCenter {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  status         String   @default("active")
+  ownerType      String?  @map("owner_type")
+  ownerId        String?  @map("owner_id")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, code])
+  @@map("cost_centers")
+  @@schema("finops")
+}
+
+model Budget {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  costCenterId   String?  @map("cost_center_id") @db.Uuid
+  branchId       String?  @map("branch_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  currency       String   @default("USD")
+  amount         Decimal  @db.Decimal(18, 6)
+  periodStart    DateTime @map("period_start") @db.Date
+  periodEnd      DateTime @map("period_end") @db.Date
+  status         String   @default("active")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([organizationId, periodStart, periodEnd])
+  @@map("budgets")
+  @@schema("finops")
+}
+
+model UsageRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  tenantId       String?  @map("tenant_id") @db.Uuid
+  costCenterId   String?  @map("cost_center_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  runId          String?  @map("run_id") @db.Uuid
+  provider       String?
+  model          String?
+  usageType      String   @map("usage_type")
+  quantity       Decimal  @default(0) @db.Decimal(24, 8)
+  amount         Decimal? @db.Decimal(18, 8)
+  currency       String   @default("USD")
+  metadata       Json     @default("{}")
+  occurredAt     DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([runId])
+  @@map("usage_records")
+  @@schema("finops")
+}
+// END ATLAS GROUP OS FOUNDATION V1
+
+// BEGIN ATLAS RUNTIME V2 SLICE 6
+// Add "knowledge" to datasource.schemas before appending these models.
+
+model KnowledgeSource {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  scopeType      String   @map("scope_type")
+  scopeId        String?  @map("scope_id") @db.Uuid
+  kind           String
+  externalRef    String?  @map("external_ref")
+  label          String?
+  status         String   @default("active")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([organizationId, scopeType, scopeId, status])
+  @@map("sources")
+  @@schema("knowledge")
+}
+
+model KnowledgeDocument {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  sourceId       String   @map("source_id") @db.Uuid
+  title          String
+  content        String   @db.Text
+  fingerprint    String
+  version        Int      @default(1)
+  status         String   @default("active")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, fingerprint])
+  @@index([sourceId, status, updatedAt(sort: Desc)])
+  @@map("documents")
+  @@schema("knowledge")
+}
+
+model KnowledgeChunk {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  ordinal        Int
+  content        String   @db.Text
+  charCount      Int      @map("char_count")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([documentId, ordinal])
+  @@index([documentId, ordinal])
+  @@map("chunks")
+  @@schema("knowledge")
+}
+
+model ProjectMemory {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  category       String
+  fact           String   @db.Text
+  confidence     Decimal  @default(1) @db.Decimal(5, 4)
+  importance     Int      @default(50)
+  sourceRef      String?  @map("source_ref")
+  status         String   @default("active")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([projectId, status, importance(sort: Desc)])
+  @@map("project_memories")
+  @@schema("portfolio")
+}
+// END ATLAS RUNTIME V2 SLICE 6
+
+// BEGIN ATLAS AGENT PACKS V1
+model AgentPack {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  role           String
+  department     String?
+  description    String?  @db.Text
+  status         String   @default("active")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@map("agent_packs")
+  @@schema("ai")
+}
+
+model AgentPackVersion {
+  id               String    @id @default(uuid()) @db.Uuid
+  packId           String    @map("pack_id") @db.Uuid
+  version          Int
+  status           String    @default("draft")
+  instructions     String    @db.Text
+  modelPolicy      Json      @default("{}") @map("model_policy")
+  capabilityPolicy Json      @default("{}") @map("capability_policy")
+  evaluationStatus String    @default("pending") @map("evaluation_status")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz(6)
+  metadata         Json      @default("{}")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([packId, version])
+  @@index([packId, status, version(sort: Desc)])
+  @@map("agent_pack_versions")
+  @@schema("ai")
+}
+
+model AgentPackTool {
+  id            String   @id @default(uuid()) @db.Uuid
+  packVersionId String   @map("pack_version_id") @db.Uuid
+  toolCode      String   @map("tool_code")
+  mode          String   @default("allowed")
+  constraints   Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([packVersionId, toolCode])
+  @@map("agent_pack_tools")
+  @@schema("ai")
+}
+
+model AgentPackAssignment {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  agentId       String   @map("agent_id") @db.Uuid
+  packVersionId String   @map("pack_version_id") @db.Uuid
+  status        String   @default("active")
+  assignedBy    String?  @map("assigned_by")
+  assignedAt    DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  metadata      Json     @default("{}")
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, agentId])
+  @@index([tenantId, agentId, status])
+  @@map("agent_pack_assignments")
+  @@schema("ai")
+}
+
+model AgentPackKnowledgeBinding {
+  id            String   @id @default(uuid()) @db.Uuid
+  packVersionId String   @map("pack_version_id") @db.Uuid
+  sourceId      String   @map("source_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([packVersionId, sourceId])
+  @@index([packVersionId])
+  @@map("agent_pack_bindings")
+  @@schema("knowledge")
+}
+// END ATLAS AGENT PACKS V1

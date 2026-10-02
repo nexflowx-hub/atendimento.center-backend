@@ -9,9 +9,15 @@ import { HealthController } from './health.controller';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { RelationshipModule } from './relationship/relationship.module';
+import { RuntimeModule } from './runtime/runtime.module';
 import { SignalsModule } from './signals/signals.module';
 import { SmmModule } from './smm/smm.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { ExecutionModule } from './execution-v2/execution.module';
+import { GroupOsModule } from './group-os/group-os.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
+import { AgentPacksModule } from './agent-packs/agent-packs.module';
+import { ExecutiveModule } from './executive/executive.module';
 
 @Module({
   imports: [
@@ -26,10 +32,16 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     CrmModule,
     AgentsModule,
     RelationshipModule,
+    RuntimeModule,
     SmmModule,
     SignalsModule,
     WebhooksModule,
     OnboardingModule,
+    ExecutionModule,
+    GroupOsModule,
+    KnowledgeModule,
+    AgentPacksModule,
+    ExecutiveModule,
   ],
   controllers: [HealthController],
 })
