@@ -1,8 +1,8 @@
 # Atlas service and data map — 2026-10-02
 
-Evidence boundary: repository inspected on 2026-10-02 on `feat/atlas-group-os-v2-integration`. Descriptions of source and Compose below are versioned implementation/configuration evidence, not live deployment verification. Live activation, DNS, image digests, database migration state and provider reachability are **UNKNOWN/REVERIFY**. No production access or migration execution occurred in this documentation mission. `LIVE-OBSERVED AS OF 2026-09-30` is reserved for dated external observations with evidence; none were available to substantiate here. The previous mission's complete evidence/status vocabulary and external facts were not present in the supplied history or local documents; no additional status vocabulary is invented.
+Evidence boundary: repository evidence recorded on 2026-10-02 on `feat/atlas-group-os-v2-integration`; reconciled on 2026-10-03 from starting commit `36d5a04`. Source behavior is **IMPLEMENTED-CODE**; production Compose is **CONFIGURED-CANDIDATE**. Current live activation, DNS, image digests, migration state and provider reachability remain **UNKNOWN/REVERIFY**. No production access or migration execution occurred in this documentation mission. Historical live-environment facts are sourced from the documented 2026-09-30 Atlas HQ read-only baseline. They remain dated evidence and require revalidation before destructive or production-changing actions.
 
-## Ownership and access
+## IMPLEMENTED-CODE ownership and access
 
 | Module/process | Canonical data and responsibility | Evidence |
 | --- | --- | --- |
@@ -113,7 +113,7 @@ Evidence: [schema](../../prisma/schema.prisma). This is a mapping of the checked
 | AgentPackAssignment | `ai.agent_pack_assignments` |
 | AgentPackKnowledgeBinding | `knowledge.agent_pack_bindings` |
 
-## SQL authority and migration boundary
+## STAGING-READY SQL artifacts and migration boundary
 
 [SQL migrations](../../database/migrations/) are authoritative for checks, RLS, triggers, generated columns, partial indexes and SQL foreign keys not fully represented in Prisma. Do not use Prisma db push or generated migration diffs to activate this integration. [Verification queries](../../database/verification/) describe expected catalog evidence, not successful execution evidence.
 
@@ -136,4 +136,4 @@ Optional Atlas Internal seed requires core.organizations slug atlas-internal; it
 
 ## Reverification gaps
 
-Live database host, applied migrations, deployed schemas/RLS privileges, actual organization/tenant records, active agents/packs/grants, connector credentials, job backlog, Redis key isolation, real model cost attribution and staging acceptance are UNKNOWN/REVERIFY. Historical 2026-09-30 deployment observations cannot be reconstructed from source; dated external evidence must be supplied before assigning LIVE-OBSERVED AS OF 2026-09-30.
+Live database host, applied migrations, deployed schemas/RLS privileges, actual organization/tenant records, active agents/packs/grants, connector credentials, job backlog, Redis key isolation, real model cost attribution and staging acceptance are UNKNOWN/REVERIFY. The historical host and service inventory is **LIVE-OBSERVED** as of 2026-09-30; it does not validate current Atlas V2 schemas, migrations or activation.

@@ -1,12 +1,76 @@
 {
   "as_of": "2026-10-02",
   "branch": "feat/atlas-group-os-v2-integration",
-  "source_commit": "a32a17be4fb4dedd61a4623147680c7d310be05c",
-  "scope": "Versioned implementation and configuration; documentation only",
+  "source_commit": "36d5a04",
+  "scope": "Documentation-only reconciliation of dated historical evidence and current branch implementation/configuration",
   "live_status": "UNKNOWN/REVERIFY",
   "historical_observation_label": "LIVE-OBSERVED AS OF 2026-09-30",
-  "historical_observations": [],
-  "evidence_vocabulary_limitation": "Previous mission complete vocabulary was unavailable; only explicitly supplied labels are used.",
+  "historical_observations": {
+    "status": "LIVE-OBSERVED",
+    "as_of": "2026-09-30",
+    "source": "Documented Atlas HQ read-only baseline",
+    "host": {
+      "hostname": "atlaswallet",
+      "os": "Ubuntu 24.04.4 LTS",
+      "kernel": "6.8.0-138-generic",
+      "virtualization": "KVM/OpenStack VM",
+      "root_filesystem_approx_gb": 154,
+      "ram_approx_gib": 7.8,
+      "swap_gib": 4,
+      "docker": "29.7.2",
+      "docker_compose": "5.5.0",
+      "nodejs": "22.23.2",
+      "python": "3.12.3"
+    },
+    "network": {
+      "ufw": "active",
+      "inbound_ports": [
+        22022,
+        80,
+        443
+      ],
+      "caddy_published_ports": [
+        80,
+        443
+      ],
+      "shared_network": "platform_edge existed"
+    },
+    "compose_projects": [
+      "atendimento-center",
+      "atendimento-flow",
+      "atlaswallet",
+      "autohub360",
+      "autohub360-backend",
+      "levelab-lia",
+      "mypets",
+      "pixbrasil-core"
+    ],
+    "core_services": [
+      "Atendimento.Center frontend/backend",
+      "Chatwoot",
+      "Chatwoot worker",
+      "Evolution API",
+      "Redis",
+      "PostgreSQL/pgvector",
+      "Typebot builder/viewer",
+      "Typebot PostgreSQL/Redis"
+    ],
+    "other_stacks": [
+      "LeveLab LIA",
+      "MyPets",
+      "PiXBrasil",
+      "AutoHub360",
+      "AtlasWallet"
+    ],
+    "n8n": {
+      "path": "/srv/platform/n8n",
+      "path_existed": true,
+      "active_process_or_systemd_service_observed": false,
+      "historical_classification": "PRESENT ON DISK / NOT CONFIRMED RUNNING",
+      "current_runtime": "UNKNOWN/REVERIFY"
+    },
+    "caddy_association": "AtlasWallet/shared edge"
+  },
   "evidence": [
     "deploy/production/docker-compose.yml",
     "deploy/production/Caddyfile",
@@ -46,7 +110,10 @@
       "chatwoot": 0,
       "evolution": 1,
       "atlas": 2
-    }
+    },
+    "status": "CONFIGURED-CANDIDATE",
+    "edge_cutover_status": "UNKNOWN/REVERIFY",
+    "atlas_v2_activation": "UNKNOWN/REVERIFY"
   },
   "staging": {
     "compose_project": "atlas-v2-staging",
@@ -58,7 +125,14 @@
     "api_binding": "127.0.0.1:18080:8080",
     "database_and_auth": "Separately provisioned staging endpoints",
     "worker_concurrency": 1,
-    "live_activation": "UNKNOWN/REVERIFY"
+    "live_activation": "UNKNOWN/REVERIFY",
+    "status": "STAGING-READY",
+    "ready_artifacts": [
+      "staging Compose",
+      "ordered migrations",
+      "verification SQL",
+      "Atlas.Dev acceptance runbook"
+    ]
   },
   "execution": {
     "implemented_queue": "atlas.agent",
@@ -359,12 +433,75 @@
   ],
   "limitations": [
     "No live deployment verification",
-    "No historical external observations available",
+    "Historical observations are dated 2026-09-30; staging and production Atlas V2 activation are not validated",
     "Pack instructions and knowledge bindings not fully consumed by Runtime",
     "Nonempty tool constraints fail closed",
     "GovernancePolicy JSON is not an executable policy DSL",
     "Crash recovery may require reconciliation",
     "Tool timeouts do not cancel running side effects",
     "UsageRecords do not automatically cover every Runtime model call"
-  ]
+  ],
+  "reconciled_on": "2026-10-03",
+  "historical_evidence_notice": "Historical live-environment facts are sourced from the documented 2026-09-30 Atlas HQ read-only baseline. They remain dated evidence and require revalidation before destructive or production-changing actions.",
+  "evidence_vocabulary": [
+    "LIVE-OBSERVED",
+    "OPERATOR-CONFIRMED",
+    "CONFIGURED-CANDIDATE",
+    "IMPLEMENTED-CODE",
+    "STAGING-READY",
+    "STAGING-VALIDATED",
+    "PRODUCTION-VALIDATED",
+    "PLANNED",
+    "UNKNOWN/REVERIFY"
+  ],
+  "implementation": {
+    "status": "IMPLEMENTED-CODE",
+    "components": [
+      "Runtime V2",
+      "Group OS",
+      "Knowledge",
+      "Agent Packs",
+      "Executive",
+      "atlas.agent queue",
+      "approval/revalidation path",
+      "Redis /2 enforcement"
+    ]
+  },
+  "operator_identities": {
+    "atlas": {
+      "status": "LIVE-OBSERVED",
+      "as_of": "2026-09-30",
+      "role": "Human/admin; privileged sudo + Docker account; not autonomous runtime identity"
+    },
+    "atlas-agent": {
+      "status": "PLANNED",
+      "role": "Restricted Atlas runtime/service identity; no standing sudo/docker authority by design",
+      "current_provisioning": "UNKNOWN/REVERIFY"
+    },
+    "atlas-codex": {
+      "status": "OPERATOR-CONFIRMED",
+      "role": "Isolated engineering/bootstrap identity; not Atlas Group OS itself",
+      "workspace": "/srv/atlas/workspaces/atendimento-center-atlas-v2-integration"
+    }
+  },
+  "portfolio_intent": {
+    "status": "PLANNED",
+    "keep_core": [
+      "Atendimento.Center",
+      "Chatwoot",
+      "Evolution",
+      "Typebot",
+      "PostgreSQL/pgvector",
+      "Redis",
+      "required shared edge/network",
+      "Atlas HQ services"
+    ],
+    "freeze_cold_candidates_after_recovery_validation": [
+      "MyPets",
+      "LeveLab LIA",
+      "PiXBrasil",
+      "AutoHub360"
+    ],
+    "atlaswallet_retirement_condition": "Only after Caddy/shared-edge extraction and verification"
+  }
 }

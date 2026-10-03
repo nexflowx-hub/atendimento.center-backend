@@ -1,8 +1,41 @@
 # Atlas current infrastructure — 2026-10-02
 
-Evidence boundary: repository inspected on 2026-10-02 on `feat/atlas-group-os-v2-integration`. Descriptions of source and Compose below are versioned implementation/configuration evidence, not live deployment verification. Live activation, DNS, image digests, database migration state and provider reachability are **UNKNOWN/REVERIFY**. No production access or migration execution occurred in this documentation mission. `LIVE-OBSERVED AS OF 2026-09-30` is reserved for dated external observations with evidence; none were available to substantiate here. The previous mission's complete evidence/status vocabulary and external facts were not present in the supplied history or local documents; no additional status vocabulary is invented.
+Evidence boundary: repository evidence recorded on 2026-10-02 on `feat/atlas-group-os-v2-integration`; reconciled on 2026-10-03 from starting commit `36d5a04`. Source behavior is **IMPLEMENTED-CODE**; production Compose is **CONFIGURED-CANDIDATE**. Current live activation, DNS, image digests, migration state and provider reachability remain **UNKNOWN/REVERIFY**. No production access or migration execution occurred in this documentation mission. Historical live-environment facts are sourced from the documented 2026-09-30 Atlas HQ read-only baseline. They remain dated evidence and require revalidation before destructive or production-changing actions.
 
-## Production topology declared in repository
+## Historical Atlas HQ baseline — 2026-09-30
+
+The following inventory is **LIVE-OBSERVED** as of 2026-09-30 from the documented Atlas HQ read-only baseline, not a fresh host inspection.
+
+| Host attribute | Dated observation |
+| --- | --- |
+| Hostname / virtualization | atlaswallet; KVM/OpenStack VM |
+| OS / kernel | Ubuntu 24.04.4 LTS; 6.8.0-138-generic |
+| Root filesystem / RAM / swap | approximately 154 GB / approximately 7.8 GiB / 4 GiB |
+| Docker / Docker Compose | 29.7.2 / 5.5.0 |
+| Node.js / Python | 22.23.2 / 3.12.3 |
+| Network | UFW active; inbound SSH 22022, HTTP 80, HTTPS 443; Caddy published 80/443; platform_edge existed |
+
+Observed Compose projects: `atendimento-center`, `atendimento-flow`, `atlaswallet`, `autohub360`, `autohub360-backend`, `levelab-lia`, `mypets`, `pixbrasil-core`.
+
+Observed core services: Atendimento.Center frontend/backend, Chatwoot and Chatwoot worker, Evolution API, Redis, PostgreSQL/pgvector, Typebot builder/viewer and Typebot PostgreSQL/Redis. Other observed stacks: LeveLab LIA, MyPets, PiXBrasil, AutoHub360 and AtlasWallet.
+
+For n8n, `/srv/platform/n8n` existed, but no active n8n process or systemd service was observed. Historical classification: **PRESENT ON DISK / NOT CONFIRMED RUNNING** (a descriptive observation, not an additional canonical evidence status). Current runtime: **UNKNOWN/REVERIFY**. No other checkout or historical directory was inspected for this correction.
+
+## Edge discrepancy and portfolio intent
+
+**LIVE-OBSERVED** as of 2026-09-30: Caddy was associated with AtlasWallet/shared edge. **CONFIGURED-CANDIDATE** on the current branch: [production Compose](../../deploy/production/docker-compose.yml) declares Caddy inside atendimento-center. Actual edge cutover status is **UNKNOWN/REVERIFY**; the declared topology below does not establish that cutover occurred.
+
+**PLANNED** portfolio intent: KEEP / CORE includes Atendimento.Center, Chatwoot, Evolution, Typebot, PostgreSQL/pgvector, Redis, required shared edge/network and Atlas HQ services. MyPets, LeveLab LIA, PiXBrasil and AutoHub360 are FREEZE/COLD candidates only after recovery validation. The AtlasWallet application may be retired only after Caddy/shared-edge extraction and verification. These are intentions, not completed lifecycle actions.
+
+## Operator identities
+
+| Identity | Evidence and role |
+| --- | --- |
+| atlas | LIVE-OBSERVED as of 2026-09-30: human/admin with privileged sudo + Docker access; not an autonomous runtime identity |
+| atlas-agent | PLANNED identity boundary: restricted Atlas runtime/service identity with no standing sudo/docker authority by design; current provisioning is UNKNOWN/REVERIFY |
+| atlas-codex | OPERATOR-CONFIRMED during current implementation: isolated engineering/bootstrap identity; workspace `/srv/atlas/workspaces/atendimento-center-atlas-v2-integration`; not Atlas Group OS itself |
+
+## CONFIGURED-CANDIDATE production topology declared in repository
 
 ```mermaid
 flowchart LR
@@ -62,7 +95,7 @@ All configured production services use `atendimento_internal`, a bridge network.
 
 These are declared routes; current DNS, certificates, host ownership and availability are UNKNOWN/REVERIFY. Additional AtlasHub domains occur in backend CORS configuration, which does not establish ingress routes. Supabase, OpenRouter, XPayments, SMM endpoints and Apify are external configured integrations; active credentials and live connectivity are UNKNOWN/REVERIFY. No credentials belong in architecture evidence.
 
-## Isolated staging topology
+## STAGING-READY isolated staging topology
 
 ```mermaid
 flowchart LR
@@ -77,7 +110,7 @@ flowchart LR
   Worker --> Model
 ```
 
-Evidence: [staging Compose](../../deploy/staging/docker-compose.yml), [runbook](../../deploy/staging/README.md). Project `atlas-v2-staging` has a dedicated network and Redis volume, backend loopback publication and concurrency 1. It defines no local PostgreSQL, frontend, Caddy, Chatwoot, Evolution or legacy polling workers. Backend and agent worker share the reviewed immutable staging image. Database/Auth must be separately provisioned. Redis is internal, uses AOF and has no configured staging password. Staging activation is UNKNOWN/REVERIFY; the integration report records static Compose validation only.
+Evidence: [staging Compose](../../deploy/staging/docker-compose.yml), [runbook](../../deploy/staging/README.md). Project `atlas-v2-staging` has a dedicated network and Redis volume, backend loopback publication and concurrency 1. It defines no local PostgreSQL, frontend, Caddy, Chatwoot, Evolution or legacy polling workers. Backend and agent worker share the reviewed immutable staging image. Database/Auth must be separately provisioned. Redis is internal, uses AOF and has no configured staging password. Staging Compose, ordered migrations, verification SQL and Atlas.Dev acceptance runbook are **STAGING-READY**, not **STAGING-VALIDATED**. Staging activation is UNKNOWN/REVERIFY; the integration report records static Compose validation only.
 
 ## Operational limits
 
